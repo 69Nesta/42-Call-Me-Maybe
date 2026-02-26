@@ -4,4 +4,15 @@ version = "0.1.0"
 description = "Call Me Maybe - 42 Common Core - Milestone 3"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "llm-sdk",
+    "pydantic>=2.12.5",
+]
+
+[tool.uv.workspace]
+members = [
+    "llm_sdk",
+]
+
+[tool.uv.sources]
+llm-sdk = { workspace = true }
