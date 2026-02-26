@@ -1,3 +1,7 @@
+# Call Me Maybe
+data/output
+
+
 # mypy
 .mypy_cache/
 .dmypy.json
