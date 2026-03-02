@@ -28,65 +28,51 @@ class CallMeMaybe():
             )
 
     def create_preprompt(self, user_prompt: str) -> str:
-        # 'You are a helpful assistant that can call ' + \
-        # 'functions to answer questions.\n' + \
-
-        preprompt: str = 'Extract the function for the user QUERY\n'
+        preprompt: str = 'Extract the function for the user query\n'
         functuions_list: str = ', '.join(
             [function.name for function in self.functions.functions_definition]
         )
         preprompt += f'functions available: {functuions_list}\n'
         preprompt += f'query: {user_prompt}\n'
         preprompt += 'function to use: '
-        # for function in self.functions.functions_definition:
-        #     preprompt += '----\n'
-        # preprompt += f'{function.name}, '
-        #     preprompt += f'Description: \'{function.description}\'\n'
-        #     preprompt += 'Parameters:\n'
-        #     for name, content in function.parameters.items():
-        #         preprompt += f'    - \'{name}\': {content.type}\n'
 
-        # += 'Use only fonctions above to answer the question below.\n'
-        # preprompt += ''
         return preprompt
 
     def get_preprompt(self, user_prompt: str) -> list[int]:
-        # if not hasattr(self, 'preprompt_input_ids_2d'):
-        #     prompt: str = self.create_preprompt()
-        #     self.preprompt_input_ids_2d: str = self.encode(prompt)
         prompt: str = self.create_preprompt(user_prompt)
+
         self.logger.log(f'Preprompt:\n{prompt}')
-        self.preprompt_input_ids_2d: list[int] = self.encode(prompt)
-        return self.preprompt_input_ids_2d
+
+        return self.encode(prompt)
 
     def encode(self, text: str) -> list[int]:
         input_ids_2d: list[list[int]] = self.model.encode(text).tolist()
         return np.concatenate(input_ids_2d).ravel().tolist()
 
+    """
+    Todo:
+        - while parameters are not complete:
+            - Create 'mid prompt' to extract function parameters
+            - Generate parameters with restraints e.g type: number use number
+              regex to restrain the generation of the parameter value
+    """
     def prompt(self, prompt: str) -> None:
-        """
-        """
-        # user_prompt_ids: list[int] = np.concatenate(
-        #     self.model.encode(prompt).tolist()
-        # ).ravel().tolist()
-
-        # prompt_ids_2d: list[int] = np.concatenate(
-        #     [self.get_preprompt(), user_prompt_ids]
-        # ).ravel().tolist()
-
-        # prompt_ids_2d: list[int] = np.concatenate(
-        #     [self.create_preprompt(prompt)]
-        # ).ravel().tolist()
-
         prompt_ids_2d: list[int] = self.get_preprompt(prompt)
         answer_ids_2d: list[int] = []
 
-        self.logger.log('Generating:')
-        for _ in range(10):
+        longes_function_name: list[int] = max(
+            self.functions.get_names_inputs().values(),
+            key=lambda x: len(x)
+        )
+
+        self.logger.log(
+            'Finding function with on '
+            f'{len(longes_function_name)} iterations...'
+        )
+        for _ in range(len(longes_function_name)):
             logits: list[float] = self.model.get_logits_from_input_ids(
                 prompt_ids_2d
             )
-            # sorted_logits_index: list[int] = np.argsort(logits).tolist()
 
             available_functions_inputs: list[int] = [
                 inputs[len(answer_ids_2d)]
@@ -112,18 +98,10 @@ class CallMeMaybe():
                 f'Available functions logits: {sorted_functions_logits}'
             )
 
-            # if len(sorted_functions_logits) > 0:
-            #     best_logits = sorted_functions_logits[-1]
-            #     self.logger.log(
-            #         f'Best logits: {best_logits} - value'
-            #         f': \'{self.model.decode([best_logits])}\''
-            #     )
-
             if not len(sorted_functions_logits):
                 self.logger.log('No available functions logits.')
                 break
 
-            # best_logits: int = -1
             best_logits, _ = sorted_functions_logits.pop(0)
             self.logger.log(
                 f'Best logits: {best_logits} - value'
@@ -132,5 +110,5 @@ class CallMeMaybe():
             answer_ids_2d.append(best_logits)
             prompt_ids_2d.append(best_logits)
 
-        response = self.model.decode(answer_ids_2d)
-        print(f'Final Resonse: \'{response}\'')
+        function_name: str = self.model.decode(answer_ids_2d)
+        self.logger.log(f'Function name found: \'{function_name}\'')

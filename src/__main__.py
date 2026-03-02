@@ -14,6 +14,10 @@ def main() -> None:
         # ai.prompt('What is the sum of 10 and 10 ?')
         # ai.prompt('Greet shrek')
         # ai.prompt('Reverse the string \'hello\'')
+        ai.prompt(
+            'Replace all numbers in \"Hello 34 I\'m '
+            '233 years old\" with NUMBERS'
+        )
     except Exception as e:
         logger.error(str(e))
 
