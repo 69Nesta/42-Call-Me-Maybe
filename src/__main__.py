@@ -10,7 +10,10 @@ def main() -> None:
     try:
         ai = CallMeMaybe('./data/input/functions_definition.json')
 
+        ai.prompt('What is the sum of 2 and 3?')
         # ai.prompt('What is the sum of 10 and 10 ?')
+        # ai.prompt('Greet shrek')
+        # ai.prompt('Reverse the string \'hello\'')
     except Exception as e:
         logger.error(str(e))
 

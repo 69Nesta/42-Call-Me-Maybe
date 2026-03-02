@@ -89,6 +89,9 @@ class FunctionDefinitions:
                 )
             )
 
+    def get_names(self) -> list[str]:
+        return [function.name for function in self.functions_definition]
+
     def get_names_inputs(self) -> dict[str, list[int]]:
         if not self.functions_inputs.keys():
             self.logger.log('Encoding functions name definition...')
@@ -103,3 +106,14 @@ class FunctionDefinitions:
                 })
 
         return self.functions_inputs
+
+    def get_names_inputs_with(self, start: list[int]) -> dict[str, list[int]]:
+        self.logger.log(
+            f'Getting functions name definition with start: {start}...'
+        )
+        names_inputs: dict[str, list[int]] = self.get_names_inputs()
+        names_inputs_with: dict[str, list[int]] = {}
+        for name, input_ids in names_inputs.items():
+            if input_ids[:len(start)] == start:
+                names_inputs_with.update({name: input_ids})
+        return names_inputs_with
