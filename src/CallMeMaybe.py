@@ -86,7 +86,7 @@ class CallMeMaybe():
             logits: list[float] = self.model.get_logits_from_input_ids(
                 prompt_ids_2d
             )
-            sorted_logits_index: list[int] = np.argsort(logits).tolist()
+            # sorted_logits_index: list[int] = np.argsort(logits).tolist()
 
             available_functions_inputs: list[int] = [
                 inputs[len(answer_ids_2d)]
