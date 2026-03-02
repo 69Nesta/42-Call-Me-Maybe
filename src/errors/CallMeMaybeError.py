@@ -1,0 +1,2 @@
+class CallMeMaybeError(Exception):
+    pass
