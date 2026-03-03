@@ -23,9 +23,6 @@ class Vocabulary:
                 for key, index in self.vocab.items()
                 if re.search(pattern, key)
             }
-            self.logger.log(
-                f'Numbers ids: {self.numbers_ids}'
-            )
 
         return self.numbers_ids
 

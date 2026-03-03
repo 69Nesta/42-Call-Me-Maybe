@@ -120,16 +120,25 @@ class CallMeMaybe():
             prompt_ids_2d.append(best_logits)
 
         function_name: str = self.model.decode(function_name_ids)
-        self.logger.log(f'Function name found: \'{function_name}\'')
+        self.logger.log(f'{Color.BRIGHT_BLUE}{Color.BOLD}Function name found'
+                        f': \'{function_name}\'{Color.RESET}')
         self.logger.log(f'Full prompt: \'{self.model.decode(prompt_ids_2d)}\'')
 
         function_definition: FunctionDefinition = self.functions.get_by_name(
             function_name
         )
 
+        # print user_prompt_ids seq and index
+        for index in user_prompt_ids:
+            self.logger.log(
+                f'User prompt ids - index: {index} - value: '
+                f'\'{self.model.decode([index])}\''
+            )
+
         for parameter in function_definition.parameters.values():
             self.logger.log(f'Extracting parameter: {parameter.name}')
 
+            # if add ' work with cat and number but not greet
             parameter_prompt: list[int] = self.encode(
                 f'\nparameter {parameter.name} ({parameter.type}): \''
             )
@@ -151,13 +160,14 @@ class CallMeMaybe():
                     logits
                 ).tolist()[::-1]  # descending order
 
-                # self.logger.log('The 10 best logits are:')
-                # for i in range(10):
-                #     self.logger.log(
-                #         f' - index: {sorted_logits_index[i]} - value: '
-                #         f'\'{self.model.decode([sorted_logits_index[i]])}\''
-                #         f' - logit: {logits[sorted_logits_index[i]]:.2f}'
-                #     )
+                self.logger.log('---------------\n')
+                self.logger.log('The 10 best logits are:')
+                for i in range(10):
+                    self.logger.log(
+                        f' - index: {sorted_logits_index[i]} - value: '
+                        f'\'{self.model.decode([sorted_logits_index[i]])}\''
+                        f' - logit: {logits[sorted_logits_index[i]]:.2f}'
+                    )
 
                 best_logits: int
                 match parameter.type:
@@ -191,6 +201,14 @@ class CallMeMaybe():
                                 'No available logits from prompt.'
                             )
                             break
+                
+                        for index, logit in availables_logits_from_prompt:
+                            self.logger.log(
+                                f'Available logits from prompt - index: {index} - value: '
+                                f'\'{self.model.decode([index])}\''
+                                f' - logit: {logit:.2f}'
+                            )
+
                         best_logits, _ = max(
                             availables_logits_from_prompt,
                             key=lambda x: x[1]
