@@ -1,5 +1,6 @@
 from .JsonParser import JsonParder
 from .utils import Color, Logger
+import re
 
 
 t_vocab = dict[str, int]
@@ -13,6 +14,20 @@ class Vocabulary:
         self.vocab_parser: JsonParder = JsonParder(file_path)
         self.vocab: t_vocab = self.vocab_parser.get_data()
         self.logger.log('Vocab loaded.')
+
+    def get_numbers_ids(self) -> dict[int, str]:
+        if not hasattr(self, 'numebrs_ids'):
+            self.numbers_ids = {
+                index: key
+                for key, index in self.vocab.items()
+                if re.search("^\d+(\.\d+)?$", key)
+            }
+            # self.numbers_ids = filter(
+            #     lambda key: re.search("^\d+(\.\d+)?$", key[0]),
+            #     self.vocab.items()
+            # )
+
+        return self.numbers_ids
 
     def get(self) -> t_vocab:
         return self.vocab

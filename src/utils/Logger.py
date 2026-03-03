@@ -15,9 +15,8 @@ class Logger:
                   f'{self.name}]{Color.RESET} {message}')
 
     def error(self, message: str) -> None:
-        if (self.ACTIVE):
-            print(f'{Color.GRAY}[{self.get_date_time()}] {self.color}['
-                  f'{self.name}] {Color.RED}[ERROR]{Color.RESET} {message}')
+        print(f'{Color.GRAY}[{self.get_date_time()}] {self.color}['
+              f'{self.name}] {Color.RED}[ERROR]{Color.RESET} {message}')
 
     def get_date_time(self) -> str:
         now = datetime.datetime.now()

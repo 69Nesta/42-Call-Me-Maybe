@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from llm_sdk import Small_LLM_Model
 from .JsonParser import JsonParder
 from .utils import Color, Logger
@@ -8,6 +8,19 @@ import numpy as np
 class FunctionParameter(BaseModel):
     name: str = Field(..., description='The name of the parameter')
     type: str = Field(..., description='The type of the parameter')
+    value: str | int | float | None = Field(
+        None,
+        description='The value of the parameter, can be set later'
+    )
+
+    @field_validator('type')
+    def validate_type(cls, value):
+        allowed_types = ['string', 'number']
+        if value not in allowed_types:
+            raise ValueError(
+                f'Type must be one of {allowed_types}, got \'{value}\''
+            )
+        return value
 
 
 class FunctionDefinition(BaseModel):
@@ -23,6 +36,19 @@ class FunctionDefinition(BaseModel):
         ...,
         description='A dictionary of parameter names and their types'
     )
+    return_type: str = Field(
+        ...,
+        description='The type of the value returned by the function'
+    )
+
+    @field_validator('return_type')
+    def validate_type(cls, value):
+        allowed_types = ['string', 'number']
+        if value not in allowed_types:
+            raise ValueError(
+                f'Type must be one of {allowed_types}, got \'{value}\''
+            )
+        return value
 
 
 t_functions_definiton = list[FunctionDefinition]
@@ -68,6 +94,8 @@ class FunctionDefinitions:
             name: str = function.get('name')
             description: str = function.get('description')
             parameters: dict[str, str] = function.get('parameters')
+            return_dict: dict[str, str] = function.get('returns')
+            return_type: str = return_dict.get('type')
 
             # self.logger.log(f'Function: {name}')
             # self.logger.log(f'Description: {description}')
@@ -85,7 +113,8 @@ class FunctionDefinitions:
                 FunctionDefinition(
                     name=name,
                     description=description,
-                    parameters=parameters_parsed
+                    parameters=parameters_parsed,
+                    return_type=return_type
                 )
             )
 
@@ -117,3 +146,9 @@ class FunctionDefinitions:
             if input_ids[:len(start)] == start:
                 names_inputs_with.update({name: input_ids})
         return names_inputs_with
+
+    def get_by_name(self, name: str) -> FunctionDefinition:
+        function = next(x for x in self.functions_definition if x.name == name)
+        if function:
+            return function
+        raise ValueError(f'Function definition with name \'{name}\' not found')
