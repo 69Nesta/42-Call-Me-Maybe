@@ -17,15 +17,15 @@ class Vocabulary:
 
     def get_numbers_ids(self) -> dict[int, str]:
         if not hasattr(self, 'numebrs_ids'):
-            self.numbers_ids = {
+            pattern = r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
+            self.numbers_ids: dict[int, str] = {
                 index: key
                 for key, index in self.vocab.items()
-                if re.search("^\d+(\.\d+)?$", key)
+                if re.search(pattern, key)
             }
-            # self.numbers_ids = filter(
-            #     lambda key: re.search("^\d+(\.\d+)?$", key[0]),
-            #     self.vocab.items()
-            # )
+            self.logger.log(
+                f'Numbers ids: {self.numbers_ids}'
+            )
 
         return self.numbers_ids
 

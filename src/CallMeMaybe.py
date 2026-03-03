@@ -58,10 +58,14 @@ class CallMeMaybe():
               regex to restrain the generation of the parameter value
     """
     def prompt(self, prompt: str) -> None:
+        # prompt: str = prompt.replace('\'', '\\\'').replace('"', '\\"')
         user_prompt_ids: list[int] = self.encode(prompt)
         prompt_ids_2d: list[int] = self.get_preprompt(prompt)
         function_name_ids: list[int] = []
-
+        self.logger.log(
+            f'{Color.GREEN}User prompt ids: {user_prompt_ids}'
+            f'{Color.RESET}'
+        )
         longes_function_name: list[int] = max(
             self.functions.get_names_inputs().values(),
             key=lambda x: len(x)
@@ -127,7 +131,7 @@ class CallMeMaybe():
             self.logger.log(f'Extracting parameter: {parameter.name}')
 
             parameter_prompt: list[int] = self.encode(
-                f'\nparameter {parameter.name} ({parameter.type}): '
+                f'\nparameter {parameter.name} ({parameter.type}): \''
             )
 
             parameter_prompt_ids: list[int] = np.concatenate(
@@ -166,10 +170,15 @@ class CallMeMaybe():
                                 f'{self.model.decode([best_logits])}\''
                                 ' is not a number, skipping...'
                             )
-                            
-                            # self.logger.log(
-                            #     f'Parameter {parameter.name}: \''
-                            #     f'{}\''
+
+                            parameter.value = float(
+                                self.model.decode(parameter_ids)
+                            )
+                            self.logger.log(
+                                f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
+                                f' {parameter.name}: \''
+                                f'{parameter.value}\'{Color.RESET}'
+                            )
                             break
                     case 'string':
                         availables_logits_from_prompt: list[tuple[int, float]]
@@ -187,14 +196,27 @@ class CallMeMaybe():
                             key=lambda x: x[1]
                         )
 
+                        # if best_logits not in user_prompt_ids:
                         if not is_subsequence(
                                     user_prompt_ids,
                                     parameter_ids + [best_logits]
-                                ):
+                                ) or self.model.decode([best_logits]) in [
+                                    "'",
+                                    '"'
+                                ]:
                             self.logger.log(
                                 'Best logits \''
                                 f'{self.model.decode([best_logits])}'
                                 '\' already used in parameter, skipping...'
+                            )
+
+                            parameter.value = str(
+                                self.model.decode(parameter_ids)
+                            ).strip().strip('"').strip("'").strip()
+                            self.logger.log(
+                                f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
+                                f' {parameter.name}: \''
+                                f'{parameter.value}\'{Color.RESET}'
                             )
                             break
                     case _:
