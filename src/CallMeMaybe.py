@@ -1,18 +1,31 @@
-from llm_sdk import Small_LLM_Model
-from .FunctionDefinitions import FunctionDefinitions, FunctionDefinition
+from llm_sdk import Small_LLM_Model  # type: ignore
+from .FunctionDefinitions import (
+    FunctionDefinitions,
+    FunctionDefinition
+)
 from .Vocabulary import Vocabulary
-
-from .utils import Logger, Color, is_subsequence
+from .utils import Logger, Color
+from .OutputFile import OutputFile
 import numpy as np
 
 
+t_prompt_dict = dict[str, str | dict[str, str | float]]
+
 
 class CallMeMaybe():
-    def __init__(self, functions_definition_path: str) -> None:
-        self.logger: Logger = Logger('CallMeMaybe', Color.CYAN)
+    def __init__(
+                self,
+                functions_definition_path: str,
+                output_file_path: str
+            ) -> None:
+        self.logger: Logger = Logger(name='CallMeMaybe', color=Color.CYAN)
         self.logger.log('Initializing LLM...')
         self.model: Small_LLM_Model = Small_LLM_Model()
         self.logger.log('Model initialized.')
+        self.output_file: OutputFile = OutputFile(
+            logger=Logger(name='OutputFile', color=Color.BRIGHT_WHITE),
+            file_path=output_file_path
+        )
 
         self.vocab = Vocabulary(
             file_path=self.model.get_path_to_vocab_file()
@@ -49,6 +62,9 @@ class CallMeMaybe():
     def encode(self, text: str) -> list[int]:
         input_ids_2d: list[list[int]] = self.model.encode(text).tolist()
         return np.concatenate(input_ids_2d).ravel().tolist()
+
+    def decode(self, input_ids: list[int]) -> str:
+        return self.model.decode(input_ids)
 
     """
     Todo:
@@ -93,12 +109,12 @@ class CallMeMaybe():
                 f'Available functions inputs: {available_functions_inputs}'
             )
 
-            availables_functions_logits: list[tuple[int, float]] = {
+            availables_functions_logits: list[tuple[int, float]] = [
                 (index, logits[index])
                 for index in available_functions_inputs
-            }
+            ]
 
-            sorted_functions_logits: list[int] = sorted(
+            sorted_functions_logits: list[tuple[int, float]] = sorted(
                 availables_functions_logits,
                 key=lambda x: x[1],
                 reverse=True
@@ -111,6 +127,7 @@ class CallMeMaybe():
                 self.logger.log('No available functions logits.')
                 break
 
+            best_logits: int
             best_logits, _ = sorted_functions_logits.pop(0)
             self.logger.log(
                 f'Best logits: {best_logits} - value'
@@ -152,7 +169,7 @@ class CallMeMaybe():
 
             parameter_complete: bool = False
             while not parameter_complete:
-                logits: list[float] = self.model.get_logits_from_input_ids(
+                logits = self.model.get_logits_from_input_ids(
                     parameter_prompt_ids
                 )
 
@@ -169,7 +186,6 @@ class CallMeMaybe():
                         f' - logit: {logits[sorted_logits_index[i]]:.2f}'
                     )
 
-                best_logits: int
                 match parameter.type:
                     case 'number':
                         best_logits = sorted_logits_index.pop(0)
@@ -191,42 +207,48 @@ class CallMeMaybe():
                             )
                             break
                     case 'string':
-                        availables_logits_from_prompt: list[tuple[int, float]]
-                        availables_logits_from_prompt = {
-                            (index, logits[index])
-                            for index in user_prompt_ids
-                        }
-                        if not len(availables_logits_from_prompt):
-                            self.logger.log(
-                                'No available logits from prompt.'
+                        best_logits = -1
+                        for i in range(10):
+                            predicted_token_id: int = sorted_logits_index[i]
+                            predicted_sentence: str = self.model.decode(
+                                parameter_ids + [predicted_token_id]
                             )
-                            break
-                
-                        for index, logit in availables_logits_from_prompt:
-                            self.logger.log(
-                                f'Available logits from prompt - index: {index} - value: '
-                                f'\'{self.model.decode([index])}\''
-                                f' - logit: {logit:.2f}'
-                            )
+                            if (i < 1
+                               and self.decode([predicted_token_id]).strip()
+                               in [
+                                        '"', "\\'", "'", '\"',
+                                        '\n', '"\n', "'\n"
+                                    ]):
+                                self.logger.log(
+                                    f'{Color.RED}Best logits '
+                                    f'{self.decode([predicted_token_id])} '
+                                    f'not valid, skipping...{Color.RESET}'
+                                )
+                                break
 
-                        best_logits, _ = max(
-                            availables_logits_from_prompt,
-                            key=lambda x: x[1]
-                        )
-
-                        # if best_logits not in user_prompt_ids:
-                        if not is_subsequence(
-                                    user_prompt_ids,
-                                    parameter_ids + [best_logits]
-                                ) or self.model.decode([best_logits]) in [
-                                    "'",
-                                    '"'
-                                ]:
                             self.logger.log(
-                                'Best logits \''
-                                f'{self.model.decode([best_logits])}'
-                                '\' already used in parameter, skipping...'
+                                f'Checking best logits: {predicted_token_id}'
+                                ' - value: \''
+                                f'{self.model.decode([predicted_token_id])}\' '
+                                f'- logit: {logits[predicted_token_id]:.2f} - '
+                                f'predicted sentence: \'{predicted_sentence}\''
                             )
+                            if (not predicted_token_id or
+                               not predicted_sentence.strip()):
+                                self.logger.log(
+                                    'Best logits is empty, skipping...'
+                                )
+                                break
+                            if predicted_sentence in prompt:
+                                best_logits = predicted_token_id
+                                break
+
+                        if (best_logits == -1):
+                            # self.logger.log(
+                            #     'Best logits \''
+                            #     f'{self.model.decode([best_logits])}'
+                            #     '\' already used in parameter, skipping...'
+                            # )
 
                             parameter.value = str(
                                 self.model.decode(parameter_ids)
@@ -244,24 +266,6 @@ class CallMeMaybe():
                         )
                         break
 
-                # availables_numbers_logits: list[tuple[int, float]] = {
-                #     (index, logits[index])
-                #     for index in self.vocab.get_numbers_ids().keys()
-                # }
-
-                # self.vocab.get_numbers_ids().keys()
-
-                # self.logger.log(availables_numbers_logits)
-
-                # sorted_numbers_logits: list[int] = sorted(
-                #     availables_numbers_logits,
-                #     key=lambda x: x[1],
-                #     reverse=True
-                # )
-
-                # max not in avaliable numbers return
-
-                # best_logits, _ = sorted_numbers_logits.pop(0)
                 self.logger.log(
                     f'Best logits: {best_logits} - value'
                     f': \'{self.model.decode([best_logits])}\''
@@ -270,3 +274,16 @@ class CallMeMaybe():
                 parameter_ids.append(best_logits)
 
             prompt_ids_2d = parameter_prompt_ids
+
+        self.logger.log(f'{Color.GREEN}Function \'{function_name}\' extracted'
+                        f' with parameters:{Color.RESET}')
+        for parameter in function_definition.parameters.values():
+            self.logger.log(
+                f' - {parameter.name} ({parameter.type}): {parameter.value}'
+            )
+
+        self.output_file.add_prompt(
+            prompt=prompt,
+            function=function_definition
+        )
+        self.output_file.save()

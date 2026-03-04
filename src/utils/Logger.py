@@ -1,13 +1,12 @@
 from .Color import Color
 import datetime
+from pydantic import BaseModel, Field
 
 
-class Logger:
-    ACTIVE = True
-
-    def __init__(self, name: str, color: Color) -> None:
-        self.name: str = name
-        self.color: Color = color
+class Logger(BaseModel):
+    ACTIVE: bool = True
+    name: str = Field(..., description='The name of the logger')
+    color: Color = Field(..., description='The color of the logger')
 
     def log(self, message: str) -> None:
         if (self.ACTIVE):

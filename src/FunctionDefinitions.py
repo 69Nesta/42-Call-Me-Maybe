@@ -8,13 +8,13 @@ import numpy as np
 class FunctionParameter(BaseModel):
     name: str = Field(..., description='The name of the parameter')
     type: str = Field(..., description='The type of the parameter')
-    value: str | int | float | None = Field(
+    value: str | float | None = Field(
         None,
         description='The value of the parameter, can be set later'
     )
 
     @field_validator('type')
-    def validate_type(cls, value):
+    def validate_type(cls, value: str) -> str:
         allowed_types = ['string', 'number']
         if value not in allowed_types:
             raise ValueError(
@@ -42,7 +42,7 @@ class FunctionDefinition(BaseModel):
     )
 
     @field_validator('return_type')
-    def validate_type(cls, value):
+    def validate_type(cls, value: str) -> str:
         allowed_types = ['string', 'number']
         if value not in allowed_types:
             raise ValueError(
@@ -56,7 +56,7 @@ t_functions_definiton = list[FunctionDefinition]
 
 class FunctionDefinitions:
     def __init__(self, model: Small_LLM_Model, file_path: str) -> None:
-        self.logger = Logger('FuncDefs', Color.YELLOW)
+        self.logger = Logger(name='FuncDefs', color=Color.YELLOW)
         self.model: Small_LLM_Model = model
         self.functions_definition_path: str
         self.functions_definition_parser: JsonParder
@@ -90,12 +90,46 @@ class FunctionDefinitions:
     def parser(self, functions_definition: list[dict]) -> None:
         self.logger.log('Parsing functions definition...')
         self.functions_definition = []
+
+        def raise_if_none_str(dictionary: dict[str, str], key: str) -> str:
+            value: str | None = dictionary.get(key)
+            if value is None:
+                raise ValueError(f'Function definition missing \'{key}\'')
+            return value
+
+        def raise_if_none_dict_dict(
+                    dictionary: dict[str, dict],
+                    key: str
+                ) -> dict[str, dict]:
+            value: dict[str, dict] | None = dictionary.get(key)
+            if value is None:
+                raise ValueError(f'Function definition missing \'{key}\'')
+            return value
+
+        def raise_if_none_dict_str(
+                    dictionary: dict[str, dict],
+                    key: str
+                ) -> dict[str, str]:
+            value: dict[str, str] | None = dictionary.get(key)
+            if value is None:
+                raise ValueError(f'Function definition missing \'{key}\'')
+            return value
+
         for function in functions_definition:
-            name: str = function.get('name')
-            description: str = function.get('description')
-            parameters: dict[str, str] = function.get('parameters')
-            return_dict: dict[str, str] = function.get('returns')
-            return_type: str = return_dict.get('type')
+            name: str = raise_if_none_str(function, 'name')
+            description: str = raise_if_none_str(function, 'description')
+            parameters: dict[str, dict[str, str]] = raise_if_none_dict_dict(
+                function,
+                'parameters'
+            )
+            return_dict: dict[str, str] = raise_if_none_dict_str(
+                function,
+                'returns'
+            )
+            return_type: str = raise_if_none_str(
+                return_dict,
+                'type'
+            )
 
             # self.logger.log(f'Function: {name}')
             # self.logger.log(f'Description: {description}')
@@ -105,7 +139,8 @@ class FunctionDefinitions:
                 parameters_parsed.update({
                     param_name: FunctionParameter(
                         name=param_name,
-                        type=param_type.get('type')
+                        type=param_type.get('type', ''),
+                        value=None
                     )
                 })
                 # self.logger.log(f' - {param_name}: {param_type.get("type")}')
