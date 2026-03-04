@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from .utils import Logger, Color
+from .utils import Logger
 from .FunctionDefinitions import FunctionDefinition
 from typing import Any
 import json
