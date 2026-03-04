@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ValidationError, field_validator
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 from .JsonParser import JsonParder
 from .utils import Color, Logger
 import numpy as np
