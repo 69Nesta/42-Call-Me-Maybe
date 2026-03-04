@@ -1,57 +1,41 @@
-from pydantic import BaseModel, Field, ValidationError, field_validator
-from llm_sdk import Small_LLM_Model
+from pydantic import BaseModel, Field, ValidationError
+from typing import Literal
+from llm_sdk import Small_LLM_Model  # type: ignore
 from .JsonParser import JsonParder
 from .utils import Color, Logger
 import numpy as np
 
 
-class FunctionParameter(BaseModel):
-    name: str = Field(..., description='The name of the parameter')
-    type: str = Field(..., description='The type of the parameter')
+AllowedType = Literal['string', 'number']
+
+
+class Parameter(BaseModel):
+    type: AllowedType = Field(
+        ...,
+        description="Type of the parameter (e.g., number, string)"
+    )
+    name: str = Field(
+        '',
+        description="Name of the parameter"
+    )
     value: str | float | None = Field(
         None,
         description='The value of the parameter, can be set later'
     )
 
-    @field_validator('type')
-    def validate_type(cls, value: str) -> str:
-        allowed_types = ['string', 'number']
-        if value not in allowed_types:
-            raise ValueError(
-                f'Type must be one of {allowed_types}, got \'{value}\''
-            )
-        return value
+
+class ReturnSchema(BaseModel):
+    type: AllowedType = Field(
+        ...,
+        description="Return type"
+    )
 
 
 class FunctionDefinition(BaseModel):
-    name: str = Field(
-        ...,
-        description='The name of the function'
-    )
-    description: str = Field(
-        ...,
-        description='A brief description of the function'
-    )
-    parameters: dict[str, FunctionParameter] = Field(
-        ...,
-        description='A dictionary of parameter names and their types'
-    )
-    return_type: str = Field(
-        ...,
-        description='The type of the value returned by the function'
-    )
-
-    @field_validator('return_type')
-    def validate_type(cls, value: str) -> str:
-        allowed_types = ['string', 'number']
-        if value not in allowed_types:
-            raise ValueError(
-                f'Type must be one of {allowed_types}, got \'{value}\''
-            )
-        return value
-
-
-t_functions_definiton = list[FunctionDefinition]
+    name: str
+    description: str
+    parameters: dict[str, Parameter]
+    returns: ReturnSchema
 
 
 class FunctionDefinitions:
@@ -60,7 +44,7 @@ class FunctionDefinitions:
         self.model: Small_LLM_Model = model
         self.functions_definition_path: str
         self.functions_definition_parser: JsonParder
-        self.functions_definition: t_functions_definiton
+        self.functions_definition: list[FunctionDefinition]
 
         self.load(file_path)
 
@@ -73,85 +57,38 @@ class FunctionDefinitions:
         functions_definition = self.functions_definition_parser.get_data()
 
         try:
-            self.parser(functions_definition)
-        except ValidationError as e:
-            message: str = 'Error parsing functions definition:'
-            self.logger.error(message)
+            self.functions_definition = self.parser(functions_definition)
+            self.logger.log('Functions definition loaded.')
+        except ValueError as e:
+            raise e
 
-            for error in list(e.errors()):
-                if error['loc']:
-                    current_message = f" - {error['loc'][0]}: {error['msg']}"
-                    message += f"\n{current_message}"
-                    self.logger.error(current_message)
-
-            raise ValueError(message)
-        self.logger.log('Functions definition loaded.')
-
-    def parser(self, functions_definition: list[dict]) -> None:
+    def parser(self, raw_functions: list[dict]) -> list[FunctionDefinition]:
         self.logger.log('Parsing functions definition...')
-        self.functions_definition = []
 
-        def raise_if_none_str(dictionary: dict[str, str], key: str) -> str:
-            value: str | None = dictionary.get(key)
-            if value is None:
-                raise ValueError(f'Function definition missing \'{key}\'')
-            return value
+        try:
+            functions: list[FunctionDefinition] = [
+                FunctionDefinition.model_validate(item)
+                for item in raw_functions
+            ]
 
-        def raise_if_none_dict_dict(
-                    dictionary: dict[str, dict],
-                    key: str
-                ) -> dict[str, dict]:
-            value: dict[str, dict] | None = dictionary.get(key)
-            if value is None:
-                raise ValueError(f'Function definition missing \'{key}\'')
-            return value
+            for fn in functions:
+                for name, param in fn.parameters.items():
+                    param.name = name
 
-        def raise_if_none_dict_str(
-                    dictionary: dict[str, dict],
-                    key: str
-                ) -> dict[str, str]:
-            value: dict[str, str] | None = dictionary.get(key)
-            if value is None:
-                raise ValueError(f'Function definition missing \'{key}\'')
-            return value
+            return functions
 
-        for function in functions_definition:
-            name: str = raise_if_none_str(function, 'name')
-            description: str = raise_if_none_str(function, 'description')
-            parameters: dict[str, dict[str, str]] = raise_if_none_dict_dict(
-                function,
-                'parameters'
+        except ValidationError as e:
+            self.logger.error(
+                f"Error in file {self.functions_definition_path}:"
             )
-            return_dict: dict[str, str] = raise_if_none_dict_str(
-                function,
-                'returns'
-            )
-            return_type: str = raise_if_none_str(
-                return_dict,
-                'type'
-            )
+            for error in e.errors():
+                location = " -> ".join(str(loc) for loc in error["loc"])
+                self.logger.error(f"Field: {location}")
+                self.logger.error(f"Error: {error['msg']}")
+                self.logger.error(f"Type: {error['type']}")
+                self.logger.error("-" * 40)
 
-            # self.logger.log(f'Function: {name}')
-            # self.logger.log(f'Description: {description}')
-            # self.logger.log('Parameters:')
-            parameters_parsed: dict[str, FunctionParameter] = {}
-            for param_name, param_type in parameters.items():
-                parameters_parsed.update({
-                    param_name: FunctionParameter(
-                        name=param_name,
-                        type=param_type.get('type', ''),
-                        value=None
-                    )
-                })
-                # self.logger.log(f' - {param_name}: {param_type.get("type")}')
-            self.functions_definition.append(
-                FunctionDefinition(
-                    name=name,
-                    description=description,
-                    parameters=parameters_parsed,
-                    return_type=return_type
-                )
-            )
+            raise ValueError("Invalid function definition format")
 
     def get_names(self) -> list[str]:
         return [function.name for function in self.functions_definition]

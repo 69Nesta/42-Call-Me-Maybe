@@ -141,7 +141,7 @@ class CallMeMaybe():
                         f': \'{function_name}\'{Color.RESET}')
         self.logger.log(f'Full prompt: \'{self.model.decode(prompt_ids_2d)}\'')
 
-        function_definition: FunctionDefinition = self.functions.get_by_name(
+        function: FunctionDefinition = self.functions.get_by_name(
             function_name
         )
 
@@ -152,12 +152,12 @@ class CallMeMaybe():
                 f'\'{self.model.decode([index])}\''
             )
 
-        for parameter in function_definition.parameters.values():
-            self.logger.log(f'Extracting parameter: {parameter.name}')
+        for parameter_name, parameter in function.parameters.items():
+            self.logger.log(f'Extracting parameter: {parameter_name}')
 
             # if add ' work with cat and number but not greet
             parameter_prompt: list[int] = self.encode(
-                f'\nparameter {parameter.name} ({parameter.type}): \''
+                f'\nparameter {parameter_name} ({parameter.type}): \''
             )
 
             parameter_prompt_ids: list[int] = np.concatenate(
@@ -202,7 +202,7 @@ class CallMeMaybe():
                             )
                             self.logger.log(
                                 f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
-                                f' {parameter.name}: \''
+                                f' {parameter_name}: \''
                                 f'{parameter.value}\'{Color.RESET}'
                             )
                             break
@@ -255,7 +255,7 @@ class CallMeMaybe():
                             ).strip().strip('"').strip("'").strip()
                             self.logger.log(
                                 f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
-                                f' {parameter.name}: \''
+                                f' {parameter_name}: \''
                                 f'{parameter.value}\'{Color.RESET}'
                             )
                             break
@@ -277,13 +277,13 @@ class CallMeMaybe():
 
         self.logger.log(f'{Color.GREEN}Function \'{function_name}\' extracted'
                         f' with parameters:{Color.RESET}')
-        for parameter in function_definition.parameters.values():
+        for parameter in function.parameters.values():
             self.logger.log(
                 f' - {parameter.name} ({parameter.type}): {parameter.value}'
             )
 
         self.output_file.add_prompt(
             prompt=prompt,
-            function=function_definition
+            function=function
         )
         self.output_file.save()
