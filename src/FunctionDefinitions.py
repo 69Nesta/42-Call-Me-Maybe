@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ValidationError
 from typing import Literal
 from llm_sdk import Small_LLM_Model  # type: ignore
-from .JsonParser import JsonParder
+from .JsonParser import JsonParser
 from .utils import Color, Logger
 import numpy as np
 
@@ -43,7 +43,7 @@ class FunctionDefinitions:
         self.logger = Logger(name='FuncDefs', color=Color.YELLOW)
         self.model: Small_LLM_Model = model
         self.functions_definition_path: str
-        self.functions_definition_parser: JsonParder
+        self.functions_definition_parser: JsonParser
         self.functions_definition: list[FunctionDefinition]
 
         self.load(file_path)
@@ -53,7 +53,7 @@ class FunctionDefinitions:
     def load(self, file_path: str) -> None:
         self.logger.log('Loading functions definition...')
         self.functions_definition_path = file_path
-        self.functions_definition_parser = JsonParder(file_path)
+        self.functions_definition_parser = JsonParser(file_path)
         functions_definition = self.functions_definition_parser.get_data()
 
         try:

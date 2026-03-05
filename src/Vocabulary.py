@@ -1,4 +1,4 @@
-from .JsonParser import JsonParder
+from .JsonParser import JsonParser
 from .utils import Color, Logger
 import re
 
@@ -11,7 +11,7 @@ class Vocabulary:
         self.logger = Logger(name='Vocabulary', color=Color.BLUE)
         self.logger.log('Loading vocab...')
         self.vocab_path: str = file_path
-        self.vocab_parser: JsonParder = JsonParder(file_path)
+        self.vocab_parser: JsonParser = JsonParser(file_path)
         self.vocab: t_vocab = self.vocab_parser.get_data()
         self.logger.log('Vocab loaded.')
 

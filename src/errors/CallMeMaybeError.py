@@ -1,2 +1,2 @@
-class CallMeMaybeError(Exception):
+class CallMeMaybeError(ValueError):
     pass
