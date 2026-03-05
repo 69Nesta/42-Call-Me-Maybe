@@ -73,7 +73,7 @@ class CallMeMaybe(BaseModel):
         return np.concatenate(input_ids_2d).ravel().tolist()
 
     def decode(self, input_ids: list[int]) -> str:
-        return self._model.decode(input_ids)
+        return str(self._model.decode(input_ids))
 
     def prompt(self, prompt: str) -> None:
         user_prompt_ids: list[int] = self.encode(prompt)
@@ -138,8 +138,10 @@ class CallMeMaybe(BaseModel):
             prompt_ids_2d.append(best_logits)
 
         function_name: str = self.decode(function_name_ids)
-        self._logger.log(f'{Color.BRIGHT_BLUE}{Color.BOLD}Function name found'
-                        f': \'{function_name}\'{Color.RESET}')
+        self._logger.log(
+            f'{Color.BRIGHT_BLUE}{Color.BOLD}Function name found'
+            f': \'{function_name}\'{Color.RESET}'
+        )
         self._logger.log(f'Full prompt: \'{self.decode(prompt_ids_2d)}\'')
 
         function: FunctionDefinition = self._functions.get_by_name(
@@ -162,8 +164,10 @@ class CallMeMaybe(BaseModel):
             parameter_prompt_ids: list[int] = np.concatenate(
                 (prompt_ids_2d, parameter_prompt)
             ).ravel().tolist()
-            self._logger.log(f'Prompt: \''
-                            f'{self.decode(parameter_prompt_ids)}\'')
+            self._logger.log(
+                f'Prompt: \''
+                f'{self.decode(parameter_prompt_ids)}\''
+            )
             parameter_ids: list[int] = []
 
             parameter_complete: bool = False
@@ -270,8 +274,10 @@ class CallMeMaybe(BaseModel):
 
             prompt_ids_2d = parameter_prompt_ids
 
-        self._logger.log(f'{Color.GREEN}Function \'{function_name}\' extracted'
-                        f' with parameters:{Color.RESET}')
+        self._logger.log(
+            f'{Color.GREEN}Function \'{function_name}\' extracted'
+            f' with parameters:{Color.RESET}'
+        )
         for parameter in function.parameters.values():
             self._logger.log(
                 f' - {parameter.name} ({parameter.type}): {parameter.value}'

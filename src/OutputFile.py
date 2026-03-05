@@ -62,7 +62,7 @@ class OutputFile(BaseModel):
                 self._content = []
                 return
 
-            items: list[dict] = json.loads(content)
+            items: list[dict[str, Any]] = json.loads(content)
 
             if isinstance(items, list):
                 try:

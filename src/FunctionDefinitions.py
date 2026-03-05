@@ -73,7 +73,10 @@ class FunctionDefinitions(BaseModel):
         except ValueError as e:
             raise e
 
-    def parser(self, raw_functions: list[dict]) -> list[FunctionDefinition]:
+    def parser(
+                self,
+                raw_functions: list[dict[str, str | dict[str, dict[str, str]]]]
+            ) -> list[FunctionDefinition]:
         self._logger.log('Parsing functions definition...')
 
         try:
