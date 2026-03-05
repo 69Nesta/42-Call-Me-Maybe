@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from .utils import Logger
+from pydantic import BaseModel, Field, PrivateAttr
+from .utils import Logger, Color
 from .FunctionDefinitions import FunctionDefinition
+from .errors import NotAFileError, PermissionError as _PermissionError
 from typing import Any
 import json
 
@@ -27,35 +28,54 @@ class OutputPrompt(BaseModel):
 
 class OutputFile(BaseModel):
     file_path: str = Field(..., description='The path of the output file')
-    logger: Logger = Field(...)
 
-    content: list[OutputPrompt] = []
+    _logger: Logger = PrivateAttr()
+    _content: list[OutputPrompt] = PrivateAttr([])
 
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, _: Any) -> None:
+        self._logger = Logger(name='OutputFile', color=Color.BLUE)
+
         try:
             self.parse()
         except FileNotFoundError:
-            self.logger.log(
+            self._logger.log(
                 f'Output file not found at {self.file_path}, '
                 'creating a new one.'
             )
             self.save()
+        except PermissionError:
+            # self._logger.error(
+            #     f'Permission denied for file {self.file_path}.'
+            # )
+            raise _PermissionError(self.file_path)
+        except IsADirectoryError:
+            # self._logger.error(
+            #     f'The path {self.file_path} is not a file.'
+            # )
+            raise NotAFileError(self.file_path)
 
     def parse(self) -> None:
-        with open(self.file_path, 'r') as f:
-            items: list[dict] = json.load(f)
+        with open(self.file_path, "r") as f:
+            content = f.read().strip()
+
+            if not content:
+                self._content = []
+                return
+
+            items: list[dict[str, Any]] = json.loads(content)
+
             if isinstance(items, list):
                 try:
-                    self.content = [OutputPrompt(**item) for item in items]
+                    self._content = [OutputPrompt(**item) for item in items]
                 except Exception as e:
-                    self.logger.error(f'Error parsing output file: {e}')
+                    self._logger.error(f"Error parsing output file: {e}")
 
     def add_prompt(
                 self,
                 prompt: str,
                 function: FunctionDefinition
             ) -> None:
-        self.content.append(
+        self._content.append(
             OutputPrompt(
                 prompt=prompt,
                 name=function.name,
@@ -72,7 +92,7 @@ class OutputFile(BaseModel):
             json.dump(
                 [
                     user.model_dump()
-                    for user in self.content
+                    for user in self._content
                 ],
                 f,
                 indent=4

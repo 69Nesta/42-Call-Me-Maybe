@@ -1,9 +1,17 @@
 from .CallMeMaybeError import CallMeMaybeError
-from .OpeningError import OpeningError
+from .FileError import (
+    FileError,
+    FileNotFoundError,
+    PermissionError,
+    NotAFileError
+)
 from .ParsingError import ParsingError
 
 __all__: list[str] = [
     'CallMeMaybeError',
-    'OpeningError',
+    'FileNotFoundError',
+    'PermissionError',
+    'NotAFileError',
+    'FileError',
     'ParsingError'
 ]

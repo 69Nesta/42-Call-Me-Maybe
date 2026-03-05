@@ -1,9 +1,14 @@
-from .errors import OpeningError, ParsingError
+from .errors import (
+    ParsingError,
+    FileNotFoundError as _FileNotFoundError,
+    PermissionError as _PermissionError,
+    NotAFileError
+)
 from typing import Any
 import json
 
 
-class JsonParder:
+class JsonParser:
     def __init__(self, file_path: str, name: str | None = None) -> None:
         self.file_path: str = file_path
         self.name: str = name if name else file_path
@@ -13,8 +18,12 @@ class JsonParder:
         try:
             with open(file_path, 'r') as f:
                 return json.load(f)
-        except (IOError, FileNotFoundError, PermissionError) as e:
-            raise OpeningError(self.name, e)
+        except FileNotFoundError:
+            raise _FileNotFoundError(self.name)
+        except PermissionError:
+            raise _PermissionError(self.name)
+        except IsADirectoryError:
+            raise NotAFileError(self.name)
         except json.JSONDecodeError as e:
             raise ParsingError(self.name, e)
 
