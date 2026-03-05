@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ValidationError
-from typing import Literal
+from pydantic import BaseModel, Field, ValidationError, ConfigDict, PrivateAttr
+from typing import Literal, Any
 from llm_sdk import Small_LLM_Model  # type: ignore
 from .JsonParser import JsonParser
 from .utils import Color, Logger
@@ -38,32 +38,43 @@ class FunctionDefinition(BaseModel):
     returns: ReturnSchema
 
 
-class FunctionDefinitions:
-    def __init__(self, model: Small_LLM_Model, file_path: str) -> None:
-        self.logger = Logger(name='FuncDefs', color=Color.YELLOW)
-        self.model: Small_LLM_Model = model
-        self.functions_definition_path: str
-        self.functions_definition_parser: JsonParser
-        self.functions_definition: list[FunctionDefinition]
+class FunctionDefinitions(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-        self.load(file_path)
+    model: Small_LLM_Model = Field(
+        ...,
+        description='The language model used to encode the function names',
+    )
+    file_path: str = Field(
+        ...,
+        description='The path to the functions definition file'
+    )
 
-        self.functions_inputs: dict[str, list[int]] = {}
+    _logger: Logger = PrivateAttr()
+    _parser: JsonParser = PrivateAttr()
+    _functions_definition: list[FunctionDefinition] = PrivateAttr()
+    _functions_inputs: dict[str, list[int]] = PrivateAttr()
+
+    def model_post_init(self, _: Any) -> None:
+        self._logger = Logger(name='FuncDefs', color=Color.YELLOW)
+        # self.functions_definition: list[FunctionDefinition]
+
+        self.load(self.file_path)
+
+        self._functions_inputs: dict[str, list[int]] = {}
 
     def load(self, file_path: str) -> None:
-        self.logger.log('Loading functions definition...')
-        self.functions_definition_path = file_path
-        self.functions_definition_parser = JsonParser(file_path)
-        functions_definition = self.functions_definition_parser.get_data()
+        self._logger.log('Loading functions definition...')
+        self._parser = JsonParser(file_path)
 
         try:
-            self.functions_definition = self.parser(functions_definition)
-            self.logger.log('Functions definition loaded.')
+            self._functions_definition = self.parser(self._parser.get_data())
+            self._logger.log('Functions definition loaded.')
         except ValueError as e:
             raise e
 
     def parser(self, raw_functions: list[dict]) -> list[FunctionDefinition]:
-        self.logger.log('Parsing functions definition...')
+        self._logger.log('Parsing functions definition...')
 
         try:
             functions: list[FunctionDefinition] = [
@@ -78,38 +89,41 @@ class FunctionDefinitions:
             return functions
 
         except ValidationError as e:
-            self.logger.error(
-                f"Error in file {self.functions_definition_path}:"
+            self._logger.error(
+                f"Error in file {self.file_path}:"
             )
             for error in e.errors():
                 location = " -> ".join(str(loc) for loc in error["loc"])
-                self.logger.error(f"Field: {location}")
-                self.logger.error(f"Error: {error['msg']}")
-                self.logger.error(f"Type: {error['type']}")
-                self.logger.error("-" * 40)
+                self._logger.error(f"Field: {location}")
+                self._logger.error(f"Error: {error['msg']}")
+                self._logger.error(f"Type: {error['type']}")
+                self._logger.error("-" * 40)
 
             raise ValueError("Invalid function definition format")
 
+    def get_functions_definition(self) -> list[FunctionDefinition]:
+        return self._functions_definition
+
     def get_names(self) -> list[str]:
-        return [function.name for function in self.functions_definition]
+        return [function.name for function in self._functions_definition]
 
     def get_names_inputs(self) -> dict[str, list[int]]:
-        if not self.functions_inputs.keys():
-            self.logger.log('Encoding functions name definition...')
-            for function in self.functions_definition:
+        if not self._functions_inputs.keys():
+            self._logger.log('Encoding functions name definition...')
+            for function in self._functions_definition:
                 function_input_ids: list[int] = self.model.encode(
                     function.name
                 ).tolist()
-                self.functions_inputs.update({
+                self._functions_inputs.update({
                     function.name: np.concatenate(
                         function_input_ids
                     ).ravel().tolist()
                 })
 
-        return self.functions_inputs
+        return self._functions_inputs
 
     def get_names_inputs_with(self, start: list[int]) -> dict[str, list[int]]:
-        self.logger.log(
+        self._logger.log(
             f'Getting functions name definition with start: {start}...'
         )
         names_inputs: dict[str, list[int]] = self.get_names_inputs()
@@ -120,7 +134,11 @@ class FunctionDefinitions:
         return names_inputs_with
 
     def get_by_name(self, name: str) -> FunctionDefinition:
-        function = next(x for x in self.functions_definition if x.name == name)
+        function = next(
+            x
+            for x in self._functions_definition
+            if x.name == name
+        )
         if function:
             return function
         raise ValueError(f'Function definition with name \'{name}\' not found')
