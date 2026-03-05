@@ -1,18 +1,16 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
-from .FunctionDefinitions import (
-    FunctionDefinitions,
-    FunctionDefinition
-)
-from .Vocabulary import Vocabulary
+from .FunctionDefinitions import FunctionDefinitions, FunctionDefinition
 from .utils import Logger, Color
 from .OutputFile import OutputFile
 import numpy as np
-
+import re
 
 t_prompt_dict = dict[str, str | dict[str, str | float]]
 
 
 class CallMeMaybe():
+    NUMBER_PATTERN = r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
+
     def __init__(
                 self,
                 functions_definition_path: str,
@@ -25,10 +23,6 @@ class CallMeMaybe():
         self.output_file: OutputFile = OutputFile(
             logger=Logger(name='OutputFile', color=Color.BRIGHT_WHITE),
             file_path=output_file_path
-        )
-
-        self.vocab = Vocabulary(
-            file_path=self.model.get_path_to_vocab_file()
         )
 
         self.functions = FunctionDefinitions(
@@ -155,7 +149,6 @@ class CallMeMaybe():
         for parameter_name, parameter in function.parameters.items():
             self.logger.log(f'Extracting parameter: {parameter_name}')
 
-            # if add ' work with cat and number but not greet
             parameter_prompt: list[int] = self.encode(
                 f'\nparameter {parameter_name} ({parameter.type}): \''
             )
@@ -189,8 +182,10 @@ class CallMeMaybe():
                 match parameter.type:
                     case 'number':
                         best_logits = sorted_logits_index.pop(0)
-                        if (best_logits
-                           not in self.vocab.get_numbers_ids().keys()):
+                        if (not re.search(
+                                    self.NUMBER_PATTERN,
+                                    self.decode([best_logits])
+                                )):
                             self.logger.log(
                                 f'Best logits \''
                                 f'{self.model.decode([best_logits])}\''
@@ -210,7 +205,7 @@ class CallMeMaybe():
                         best_logits = -1
                         for i in range(10):
                             predicted_token_id: int = sorted_logits_index[i]
-                            predicted_sentence: str = self.model.decode(
+                            predicted_sentence: str = self.decode(
                                 parameter_ids + [predicted_token_id]
                             )
                             if (i < 1
