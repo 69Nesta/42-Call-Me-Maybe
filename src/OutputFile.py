@@ -74,7 +74,7 @@ class OutputFile(BaseModel):
                 self,
                 prompt: str,
                 function: FunctionDefinition
-            ) -> None:
+            ) -> OutputPrompt:
         self._content.append(
             OutputPrompt(
                 prompt=prompt,
@@ -86,6 +86,8 @@ class OutputFile(BaseModel):
                 }
             )
         )
+
+        return self._content[-1]
 
     def save(self) -> None:
         with open(self.file_path, 'w') as f:

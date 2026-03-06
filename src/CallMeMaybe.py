@@ -1,5 +1,9 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
-from .FunctionDefinitions import FunctionDefinitions, FunctionDefinition
+from .FunctionDefinitions import (
+    FunctionDefinitions,
+    FunctionDefinition,
+    Parameter
+)
 from .utils import Logger, Color
 from .OutputFile import OutputFile
 from pydantic import BaseModel, Field, PrivateAttr
@@ -24,6 +28,13 @@ class CallMeMaybe(BaseModel):
     NUMBER_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
     )
+
+    MIN_CONFIDENCE_THRESHOLD: ClassVar[float] = 24.0
+    CONFIDENCE_CHECK_ITERATION: ClassVar[int] = 1
+    MAX_LOGITS_TO_CHECK: ClassVar[int] = 10
+    STRING_TERMINATORS: ClassVar[set[str]] = {
+        '"', "\\'", "'", '\"', '\n', '"\n', "'\n"
+    }
 
     _logger: Logger = PrivateAttr()
     _model: Small_LLM_Model = PrivateAttr()
@@ -75,94 +86,199 @@ class CallMeMaybe(BaseModel):
     def decode(self, input_ids: list[int]) -> str:
         return str(self._model.decode(input_ids))
 
-    def prompt(self, prompt: str) -> None:
-        user_prompt_ids: list[int] = self.encode(prompt)
-        prompt_ids_2d: list[int] = self.get_preprompt(prompt)
+    def _get_available_function_logits(
+        self,
+        prompt_ids_2d: list[int],
+        function_name_ids: list[int]
+    ) -> list[tuple[int, float]]:
+        logits: list[float] = self._model.get_logits_from_input_ids(
+            prompt_ids_2d
+        )
+
+        available_functions_inputs: list[int] = [
+            inputs[len(function_name_ids)]
+            for _, inputs in self._functions.get_names_inputs_with(
+                function_name_ids
+            ).items()
+            if len(inputs) > len(function_name_ids)
+        ]
+
+        availables_functions_logits: list[tuple[int, float]] = [
+            (index, logits[index]) for index in available_functions_inputs
+        ]
+
+        return sorted(
+            availables_functions_logits,
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+    def _validate_function_confidence(
+                self,
+                iteration: int,
+                probability: float,
+                prompt: str
+            ) -> None:
+        if (iteration == self.CONFIDENCE_CHECK_ITERATION
+           and probability < self.MIN_CONFIDENCE_THRESHOLD):
+            raise ValueError(
+                f'Function not found in {self._functions.get_names()} '
+                f'with enough confidence to answer the prompt: \'{prompt}\'.'
+            )
+
+    def _extract_function(
+                self,
+                prompt: str,
+                user_prompt_ids: list[int],
+                prompt_ids_2d: list[int]
+            ) -> FunctionDefinition:
         function_name_ids: list[int] = []
         self._logger.log(
-            f'{Color.GREEN}User prompt ids: {user_prompt_ids}'
-            f'{Color.RESET}'
+            f'{Color.GREEN}User prompt ids: {user_prompt_ids}{Color.RESET}'
         )
-        longes_function_name: list[int] = max(
+
+        longest_function_name: list[int] = max(
             self._functions.get_names_inputs().values(),
             key=lambda x: len(x)
         )
 
         self._logger.log(
-            'Finding function name with '
-            f'{len(longes_function_name)} iterations...'
+            f'Finding function name with {len(longest_function_name)} '
+            'iterations...'
         )
 
-        for i in range(len(longes_function_name)):
-            logits: list[float] = self._model.get_logits_from_input_ids(
-                prompt_ids_2d
-            )
-
-            available_functions_inputs: list[int] = [
-                inputs[len(function_name_ids)]
-                for _, inputs
-                in self._functions.get_names_inputs_with(
-                    function_name_ids
-                ).items()
-                if len(inputs) > len(function_name_ids)
-            ]
-            self._logger.log(
-                f'Available _functions inputs: {available_functions_inputs}'
-            )
-
-            availables_functions_logits: list[tuple[int, float]] = [
-                (index, logits[index])
-                for index in available_functions_inputs
-            ]
-
-            sorted_functions_logits: list[tuple[int, float]] = sorted(
-                availables_functions_logits,
-                key=lambda x: x[1],
-                reverse=True
+        for i in range(len(longest_function_name)):
+            sorted_functions_logits = self._get_available_function_logits(
+                prompt_ids_2d, function_name_ids
             )
 
             self._logger.log(
-                f'Available _functions logits: {sorted_functions_logits}'
+                f'Available functions logits: {sorted_functions_logits}'
             )
 
-            if not len(sorted_functions_logits):
+            if not sorted_functions_logits:
                 self._logger.log('No available functions logits.')
                 break
 
-            best_logits: int
-            best_logits, best_logits_proba = sorted_functions_logits.pop(0)
+            best_logits, best_logits_proba = sorted_functions_logits[0]
+            self._validate_function_confidence(i, best_logits_proba, prompt)
 
-            if (i == 1 and best_logits_proba < 25.0):
-                raise ValueError(
-                    f'Function not found in {self._functions.get_names()} '
-                    'with enough confidence to answer the prompt'
-                    f': \'{prompt}\'.'
-                )
-
-            self._logger.log(
-                f'Best logits: {best_logits} - value'
-                f': \'{self.decode([best_logits])}\''
-            )
             function_name_ids.append(best_logits)
             prompt_ids_2d.append(best_logits)
 
         function_name: str = self.decode(function_name_ids)
         self._logger.log(
-            f'{Color.BRIGHT_BLUE}{Color.BOLD}Function name found'
-            f': \'{function_name}\'{Color.RESET}'
-        )
-        self._logger.log(f'Full prompt: \'{self.decode(prompt_ids_2d)}\'')
-
-        function: FunctionDefinition = self._functions.get_by_name(
-            function_name
+            f'{Color.BRIGHT_BLUE}{Color.BOLD}Function name found: '
+            f'\'{function_name}\'{Color.RESET}'
         )
 
-        for index in user_prompt_ids:
-            self._logger.log(
-                f'User prompt ids - index: {index} - value: '
-                f'\'{self.decode([index])}\''
+        return self._functions.get_by_name(function_name)
+
+    def _extract_number_parameter(
+                self,
+                sorted_logits_index: list[int],
+                parameter_ids: list[int]
+            ) -> tuple[float | None, int]:
+        best_logits = sorted_logits_index[0]
+
+        if not re.search(self.NUMBER_PATTERN, self.decode([best_logits])):
+            return float(self.decode(parameter_ids)), -1
+
+        return None, best_logits
+
+    def _extract_string_parameter(
+                self,
+                sorted_logits_index: list[int],
+                parameter_ids: list[int],
+                prompt: str
+            ) -> tuple[str | None, int]:
+        for i in range(self.MAX_LOGITS_TO_CHECK):
+            predicted_token_id: int = sorted_logits_index[i]
+            predicted_sentence: str = self.decode(
+                parameter_ids + [predicted_token_id]
             )
 
+            if (i < 1
+               and self.decode([predicted_token_id]).strip()
+               in self.STRING_TERMINATORS):
+                break
+
+            if not predicted_token_id or not predicted_sentence.strip():
+                self._logger.log('Best logits is empty, skipping...')
+                break
+
+            if predicted_sentence in prompt:
+                return None, predicted_token_id
+
+        return str(
+            self.decode(parameter_ids)
+        ).strip().strip('"').strip("'").strip(), -1
+
+    def _extract_single_parameter(
+                self,
+                parameter_name: str,
+                parameter: Parameter,
+                prompt: str,
+                parameter_prompt_ids: list[int]
+            ) -> list[int]:
+        parameter_ids: list[int] = []
+
+        while True:
+            logits = self._model.get_logits_from_input_ids(
+                parameter_prompt_ids
+            )
+            sorted_logits_index: list[int] = np.argsort(logits).tolist()[::-1]
+
+            best_logits: int
+            match parameter.type:
+                case 'number':
+                    num_value: float | None
+                    num_value, best_logits = self._extract_number_parameter(
+                        sorted_logits_index, parameter_ids
+                    )
+                    if num_value is not None:
+                        parameter.value = num_value
+                        self._logger.log(
+                            f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
+                            f' {parameter_name}: '
+                            f'\'{parameter.value}\'{Color.RESET}'
+                        )
+                        break
+
+                case 'string':
+                    str_value: str | None
+                    str_value, best_logits = self._extract_string_parameter(
+                        sorted_logits_index,
+                        parameter_ids,
+                        prompt
+                    )
+                    if str_value is not None:
+                        parameter.value = str_value
+                        self._logger.log(
+                            f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
+                            f' {parameter_name}: '
+                            f'\'{parameter.value}\'{Color.RESET}'
+                        )
+                        break
+
+                case _:
+                    self._logger.error(
+                        f'Parameter type \'{parameter.type}\' not supported,'
+                        ' skipping...'
+                    )
+                    return parameter_prompt_ids
+
+            parameter_prompt_ids.append(best_logits)
+            parameter_ids.append(best_logits)
+
+        return parameter_prompt_ids
+
+    def _extract_parameters(
+                self,
+                prompt: str,
+                prompt_ids_2d: list[int],
+                function: FunctionDefinition
+            ) -> FunctionDefinition:
         for parameter_name, parameter in function.parameters.items():
             self._logger.log(f'Extracting parameter: {parameter_name}')
 
@@ -173,127 +289,39 @@ class CallMeMaybe(BaseModel):
             parameter_prompt_ids: list[int] = np.concatenate(
                 (prompt_ids_2d, parameter_prompt)
             ).ravel().tolist()
-            self._logger.log(
-                f'Prompt: \''
-                f'{self.decode(parameter_prompt_ids)}\''
+
+            prompt_ids_2d = self._extract_single_parameter(
+                parameter_name, parameter, prompt, parameter_prompt_ids
             )
-            parameter_ids: list[int] = []
 
-            parameter_complete: bool = False
-            while not parameter_complete:
-                logits = self._model.get_logits_from_input_ids(
-                    parameter_prompt_ids
-                )
+        return function
 
-                sorted_logits_index: list[int] = np.argsort(
-                    logits
-                ).tolist()[::-1]  # descending order
-
-                self._logger.log('---------------\n')
-                self._logger.log('The 10 best logits are:')
-                for i in range(10):
-                    self._logger.log(
-                        f' - index: {sorted_logits_index[i]} - value: '
-                        f'\'{self.decode([sorted_logits_index[i]])}\''
-                        f' - logit: {logits[sorted_logits_index[i]]:.2f}'
-                    )
-
-                match parameter.type:
-                    case 'number':
-                        best_logits = sorted_logits_index.pop(0)
-                        if (not re.search(
-                                    self.NUMBER_PATTERN,
-                                    self.decode([best_logits])
-                                )):
-                            self._logger.log(
-                                f'Best logits \''
-                                f'{self.decode([best_logits])}\''
-                                ' is not a number, skipping...'
-                            )
-
-                            parameter.value = float(
-                                self.decode(parameter_ids)
-                            )
-                            self._logger.log(
-                                f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
-                                f' {parameter_name}: \''
-                                f'{parameter.value}\'{Color.RESET}'
-                            )
-                            break
-                    case 'string':
-                        best_logits = -1
-                        for i in range(10):
-                            predicted_token_id: int = sorted_logits_index[i]
-                            predicted_sentence: str = self.decode(
-                                parameter_ids + [predicted_token_id]
-                            )
-                            if (i < 1
-                               and self.decode([predicted_token_id]).strip()
-                               in [
-                                        '"', "\\'", "'", '\"',
-                                        '\n', '"\n', "'\n"
-                                    ]):
-                                self._logger.log(
-                                    f'{Color.RED}Best logits '
-                                    f'{self.decode([predicted_token_id])} '
-                                    f'not valid, skipping...{Color.RESET}'
-                                )
-                                break
-
-                            self._logger.log(
-                                f'Checking best logits: {predicted_token_id}'
-                                ' - value: \''
-                                f'{self.decode([predicted_token_id])}\' '
-                                f'- logit: {logits[predicted_token_id]:.2f} - '
-                                f'predicted sentence: \'{predicted_sentence}\''
-                            )
-                            if (not predicted_token_id or
-                               not predicted_sentence.strip()):
-                                self._logger.log(
-                                    'Best logits is empty, skipping...'
-                                )
-                                break
-                            if predicted_sentence in prompt:
-                                best_logits = predicted_token_id
-                                break
-
-                        if (best_logits == -1):
-                            parameter.value = str(
-                                self.decode(parameter_ids)
-                            ).strip().strip('"').strip("'").strip()
-                            self._logger.log(
-                                f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
-                                f' {parameter_name}: \''
-                                f'{parameter.value}\'{Color.RESET}'
-                            )
-                            break
-                    case _:
-                        self._logger.log(
-                            f'Parameter type \'{parameter.type}\''
-                            ' not supported, skipping...'
-                        )
-                        break
-
-                self._logger.log(
-                    f'Best logits: {best_logits} - value'
-                    f': \'{self.decode([best_logits])}\''
-                )
-                parameter_prompt_ids.append(best_logits)
-                parameter_ids.append(best_logits)
-
-            prompt_ids_2d = parameter_prompt_ids
-
+    def _log_extracted_function(self, function: FunctionDefinition) -> None:
         self._logger.log(
-            f'{Color.GREEN}Function \'{function_name}\' extracted'
-            f' with parameters:{Color.RESET}'
+            f'{Color.GREEN}Function \'{function.name}\' extracted with '
+            f'parameters:{Color.RESET}'
         )
         for parameter in function.parameters.values():
             self._logger.log(
                 f' - {parameter.name} ({parameter.type}): {parameter.value}'
             )
 
-        self._output_file.add_prompt(
+    def prompt(self, prompt: str) -> None:
+        user_prompt_ids: list[int] = self.encode(prompt)
+        prompt_ids_2d: list[int] = self.get_preprompt(prompt)
+
+        function: FunctionDefinition = self._extract_function(
             prompt=prompt,
+            user_prompt_ids=user_prompt_ids,
+            prompt_ids_2d=prompt_ids_2d
+        )
+
+        self._extract_parameters(
+            prompt=prompt,
+            prompt_ids_2d=prompt_ids_2d,
             function=function
         )
+        self._log_extracted_function(function)
+
+        self._output_file.add_prompt(prompt=prompt, function=function)
         self._output_file.save()
