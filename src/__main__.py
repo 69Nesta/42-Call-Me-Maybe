@@ -47,6 +47,8 @@ def main() -> None:
                 logger.error(f"Error: {error.get('ctx', {}).get('error')}")
             else:
                 logger.error(f"Error: {error['msg']}")
+    except ValueError as e:
+        logger.error(f'Error: {e.__cause__ or e}')
 
 
 if __name__ == "__main__":
