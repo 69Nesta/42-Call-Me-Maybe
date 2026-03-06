@@ -18,6 +18,7 @@ def main() -> None:
         # )
 
         # ai.prompt(input('Enter your prompt: '))
+        # ai.prompt('Replace all \'\\\' in \'Hello World!\' with \'\"\'')
         # ai.prompt('What is the sum of 3.2 and 1.0?')
         # ai.prompt('What is the sum of 32 and 10?')
         ai.prompt('What is the sum of 444 and 44.4?')

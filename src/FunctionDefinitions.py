@@ -57,7 +57,6 @@ class FunctionDefinitions(BaseModel):
 
     def model_post_init(self, _: Any) -> None:
         self._logger = Logger(name='FuncDefs', color=Color.YELLOW)
-        # self.functions_definition: list[FunctionDefinition]
 
         self.load(self.file_path)
 
@@ -72,6 +71,12 @@ class FunctionDefinitions(BaseModel):
             self._logger.log('Functions definition loaded.')
         except ValueError as e:
             raise e
+
+        if len(self._functions_definition) < 2:
+            raise ValueError(
+                'Not enough functions defined, at least '
+                '2 functions are required.'
+            )
 
     def parser(
                 self,
