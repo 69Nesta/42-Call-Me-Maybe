@@ -93,7 +93,7 @@ class CallMeMaybe(BaseModel):
             f'{len(longes_function_name)} iterations...'
         )
 
-        for _ in range(len(longes_function_name)):
+        for i in range(len(longes_function_name)):
             logits: list[float] = self._model.get_logits_from_input_ids(
                 prompt_ids_2d
             )
@@ -120,16 +120,25 @@ class CallMeMaybe(BaseModel):
                 key=lambda x: x[1],
                 reverse=True
             )
+
             self._logger.log(
                 f'Available _functions logits: {sorted_functions_logits}'
             )
 
             if not len(sorted_functions_logits):
-                self._logger.log('No available _functions logits.')
+                self._logger.log('No available functions logits.')
                 break
 
             best_logits: int
-            best_logits, _ = sorted_functions_logits.pop(0)
+            best_logits, best_logits_proba = sorted_functions_logits.pop(0)
+
+            if (i == 1 and best_logits_proba < 25.0):
+                raise ValueError(
+                    f'Function not found in {self._functions.get_names()} '
+                    'with enough confidence to answer the prompt'
+                    f': \'{prompt}\'.'
+                )
+
             self._logger.log(
                 f'Best logits: {best_logits} - value'
                 f': \'{self.decode([best_logits])}\''
