@@ -33,7 +33,7 @@ class OutputFile(BaseModel):
     _content: list[OutputPrompt] = PrivateAttr([])
 
     def model_post_init(self, _: Any) -> None:
-        self._logger = Logger(ACTIVE=True, name='OutputFile', color=Color.BLUE)
+        self._logger = Logger(name='OutputFile', color=Color.BLUE)
 
         try:
             self.parse()
@@ -90,6 +90,7 @@ class OutputFile(BaseModel):
         return self._content[-1]
 
     def save(self) -> None:
+        self._logger.log('Saving...')
         with open(self.file_path, 'w') as f:
             json.dump(
                 [
