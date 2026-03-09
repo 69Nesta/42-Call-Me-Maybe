@@ -15,12 +15,12 @@ class FunctionCallingTest(BaseModel):
 
 class CallingTests(BaseModel):
     file_path: str = Field(...)
-    prompt_function: Callable = Field(...)
+    prompt_function: Callable[[str], None] = Field(...)
 
     _logger: Logger = PrivateAttr()
     _content: list[FunctionCallingTest] = PrivateAttr([])
 
-    def model_post_init(self, context: Any):
+    def model_post_init(self, context: Any) -> None:
         self._logger = Logger(
             ACTIVE=True,
             name='CallingTests',
