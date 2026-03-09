@@ -1,9 +1,9 @@
-from .ArgsParser import ArgsParser
+from .ArgsParser import ArgsParser, Namespace
 from .CallMeMaybe import CallMeMaybe
 from .CallingTests import CallingTests
 from .OutputFile import OutputPrompt
 from pydantic import ValidationError
-from .utils import Logger, Color
+from .utils import Logger, Color, ProgressBar, StepName
 import sys
 
 
@@ -12,21 +12,33 @@ def main() -> None:
     logger.log('Starting the program...')
 
     try:
-        args_parser = ArgsParser()
-        args = args_parser.parse_args(sys.argv[1:])
+        args_parser: ArgsParser = ArgsParser()
+        args: Namespace = args_parser.parse_args(sys.argv[1:])
+
+        progress_bar: ProgressBar = ProgressBar(
+            total=1,
+            current=0,
+            length=20,
+            current_step_name=StepName.EXTRACTING_FUNCTION
+        )
 
         ai = CallMeMaybe(
             functions_definition_path=str(args.functions_definition),
-            output_file_path=str(args.output)
+            output_file_path=str(args.output),
+            progress_bar=progress_bar
         )
 
         if not args.interactive:
             calling_test = CallingTests(
                 file_path=str(args.input),
-                prompt_function=ai.prompt
+                prompt_function=ai.prompt,
+                progress_bar=progress_bar
             )
 
             calling_test.run_tests()
+
+            progress_bar.update(0, StepName.FINISHED)
+            progress_bar.end()
         else:
             logger.info('Enter yout prompt: ', end='')
             output: OutputPrompt = ai.prompt(input(''))

@@ -4,7 +4,7 @@ from .FunctionDefinitions import (
     FunctionDefinition,
     Parameter
 )
-from .utils import Logger, Color
+from .utils import Logger, Color, ProgressBar, StepName
 from .OutputFile import OutputFile, OutputPrompt
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Any, ClassVar
@@ -24,6 +24,7 @@ class CallMeMaybe(BaseModel):
         description='The path to the output file where the prompts and their '
                     'extracted _functions will be saved'
     )
+    progress_bar: ProgressBar = Field(...)
 
     NUMBER_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
@@ -132,6 +133,7 @@ class CallMeMaybe(BaseModel):
                 user_prompt_ids: list[int],
                 prompt_ids_2d: list[int]
             ) -> FunctionDefinition:
+        self.progress_bar.update(0, StepName.EXTRACTING_FUNCTION)
         function_name_ids: list[int] = []
         self._logger.log(
             f'{Color.GREEN}User prompt ids: {user_prompt_ids}{Color.RESET}'
@@ -279,6 +281,8 @@ class CallMeMaybe(BaseModel):
                 prompt_ids_2d: list[int],
                 function: FunctionDefinition
             ) -> FunctionDefinition:
+        self.progress_bar.update(0, StepName.EXTRACTING_PARAMETERS)
+
         for parameter_name, parameter in function.parameters.items():
             self._logger.log(f'Extracting parameter: {parameter_name}')
 
