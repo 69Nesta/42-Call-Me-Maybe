@@ -40,6 +40,7 @@ def main() -> None:
             progress_bar.update(0, StepName.FINISHED)
             progress_bar.end()
         else:
+            progress_bar.ACTIVE = False
             logger.info('Enter yout prompt: ', end='')
             output: OutputPrompt = ai.prompt(input(''))
             logger.info(f'Function used: {output.name}')
