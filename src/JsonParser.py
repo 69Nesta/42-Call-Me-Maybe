@@ -1,5 +1,5 @@
 from .errors import (
-    ParsingError,
+    InvalidJsonFileError,
     FileNotFoundError as _FileNotFoundError,
     PermissionError as _PermissionError,
     NotAFileError
@@ -24,8 +24,8 @@ class JsonParser:
             raise _PermissionError(self.name)
         except IsADirectoryError:
             raise NotAFileError(self.name)
-        except json.JSONDecodeError as e:
-            raise ParsingError(self.name, e)
+        except json.JSONDecodeError:
+            raise InvalidJsonFileError(self.file_path)
 
     def get_data(self) -> Any:
         return self.data

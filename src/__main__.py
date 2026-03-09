@@ -1,21 +1,25 @@
-# from argparse import ArgumentParser
+from .ArgsParser import ArgsParser
 from .CallMeMaybe import CallMeMaybe
 from .CallingTests import CallingTests
 from pydantic import ValidationError
 from .utils import Logger, Color
+import sys
 
 
 def main() -> None:
-    logger: Logger = Logger(name='Main', color=Color.MAGENTA)
+    logger: Logger = Logger(ACTIVE=True, name='Main', color=Color.MAGENTA)
     logger.log('Starting the program...')
 
     try:
+        args_parser = ArgsParser()
+        args = args_parser.parse_args(sys.argv[1:])
+
         ai = CallMeMaybe(
-            functions_definition_path='./data/input/functions_definition.json',
-            output_file_path='./data/output/prompts_output.json'
+            functions_definition_path=str(args.functions_definition),
+            output_file_path=str(args.output)
         )
         calling_test = CallingTests(
-            file_path='./data/input/function_calling_tests.json',
+            file_path=str(args.input),
             prompt_function=ai.prompt
         )
 

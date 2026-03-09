@@ -1,7 +1,8 @@
 from .errors import (
     NotAFileError,
     PermissionError as _PermissionError,
-    FileNotFoundError as _FileNotFoundError
+    FileNotFoundError as _FileNotFoundError,
+    InvalidJsonFileError
 )
 from pydantic import BaseModel, ValidationError, Field, PrivateAttr
 from typing import Any, Callable
@@ -35,6 +36,8 @@ class CallingTests(BaseModel):
             raise _PermissionError(self.file_path)
         except IsADirectoryError:
             raise NotAFileError(self.file_path)
+        except json.JSONDecodeError:
+            raise InvalidJsonFileError(self.file_path)
 
         super().model_post_init(context)
 
