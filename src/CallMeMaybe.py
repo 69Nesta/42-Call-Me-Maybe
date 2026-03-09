@@ -5,7 +5,7 @@ from .FunctionDefinitions import (
     Parameter
 )
 from .utils import Logger, Color
-from .OutputFile import OutputFile
+from .OutputFile import OutputFile, OutputPrompt
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Any, ClassVar
 import numpy as np
@@ -306,7 +306,7 @@ class CallMeMaybe(BaseModel):
                 f' - {parameter.name} ({parameter.type}): {parameter.value}'
             )
 
-    def prompt(self, prompt: str) -> None:
+    def prompt(self, prompt: str) -> OutputPrompt:
         user_prompt_ids: list[int] = self.encode(prompt)
         prompt_ids_2d: list[int] = self.get_preprompt(prompt)
 
@@ -323,5 +323,10 @@ class CallMeMaybe(BaseModel):
         )
         self._log_extracted_function(function)
 
-        self._output_file.add_prompt(prompt=prompt, function=function)
+        output_prompt = self._output_file.add_prompt(
+            prompt=prompt,
+            function=function
+        )
         self._output_file.save()
+
+        return output_prompt
