@@ -180,11 +180,15 @@ class CallMeMaybe(BaseModel):
                 self,
                 sorted_logits_index: list[int],
                 parameter_ids: list[int]
-            ) -> tuple[float | None, int]:
+            ) -> tuple[float | int | None, int]:
         best_logits = sorted_logits_index[0]
 
         if not re.search(self.NUMBER_PATTERN, self.decode([best_logits])):
-            return float(self.decode(parameter_ids)), -1
+            number: str = self.decode(parameter_ids)
+            if '.' in number:
+                return float(number), best_logits
+            else:
+                return int(number), best_logits
 
         return None, best_logits
 
