@@ -24,3 +24,10 @@ class NotAFileError(FileError):
         super().__init__(
             f'Path \'{file_name}\' is not a file'
         )
+
+
+class InvalidJsonFileError(FileError):
+    def __init__(self, file_name: str) -> None:
+        super().__init__(
+            f'Invalid JSON format in file \'{file_name}\''
+        )
