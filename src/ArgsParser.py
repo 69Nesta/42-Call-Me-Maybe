@@ -38,6 +38,11 @@ class ArgsParser(BaseModel):
             metavar='<functions_definition_file>',
             default='./data/input/functions_definition.json'
         )
+        self._parser.add_argument(
+            '--interactive', '-I',
+            help='Run the program in interactive mode',
+            action='store_true'
+        )
         self._logger.log('Arguments registered successfully.')
 
     def parse_args(self, args: Sequence[str] | None = None) -> Namespace:

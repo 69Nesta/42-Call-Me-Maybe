@@ -1,13 +1,14 @@
 from .ArgsParser import ArgsParser
 from .CallMeMaybe import CallMeMaybe
 from .CallingTests import CallingTests
+from .OutputFile import OutputPrompt
 from pydantic import ValidationError
 from .utils import Logger, Color
 import sys
 
 
 def main() -> None:
-    logger: Logger = Logger(ACTIVE=True, name='Main', color=Color.MAGENTA)
+    logger: Logger = Logger(ACTIVE=False, name='Main', color=Color.MAGENTA)
     logger.log('Starting the program...')
 
     try:
@@ -18,33 +19,23 @@ def main() -> None:
             functions_definition_path=str(args.functions_definition),
             output_file_path=str(args.output)
         )
-        calling_test = CallingTests(
-            file_path=str(args.input),
-            prompt_function=ai.prompt
-        )
 
-        calling_test.run_tests()
+        if not args.interactive:
+            calling_test = CallingTests(
+                file_path=str(args.input),
+                prompt_function=ai.prompt
+            )
 
-        # ai.prompt(input('Enter your prompt: '))
-        # ai.prompt('Replace all \'\\\' in \'Hello World!\' with \'\"\'')
-        # ai.prompt('What is the sum of 3.2 and 1.0?')
-        # ai.prompt('What is the sum of 32 and 10?')
-        # ai.prompt('What is the sum of 444 and 44.4?')
-        # ai.prompt('What is the sum of 10 and 10 ?')
-        # ai.prompt('Greet shrek')
-        # ai.prompt('Greet jhon')
-
-        # ai.prompt('Calculate the square root of 144')
-        # ai.prompt('Reverse the string \'hello\'')
-        # ai.prompt(
-        #     'Replace all numbers in \"Hello 34 I\'m '
-        #     '233 years old\" with NUMBERS'
-        # )
-
-        # ai.prompt(
-        #     'Substitute the word \'cat\' with \'dog\' in \'The cat '
-        #     'sat on the mat with another cat\''
-        # )
+            calling_test.run_tests()
+        else:
+            logger.info('Enter yout prompt: ', end='')
+            output: OutputPrompt = ai.prompt(input(''))
+            logger.info(f'Function used: {output.name}')
+            logger.info('Parameters:')
+            for name, value in output.parameters.items():
+                logger.info(
+                    f' - {name}: {value}'
+                )
 
     except ValidationError as e:
         for error in e.errors():

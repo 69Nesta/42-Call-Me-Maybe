@@ -7,6 +7,7 @@ from .errors import (
 from pydantic import BaseModel, ValidationError, Field, PrivateAttr
 from typing import Any, Callable
 from .utils import Logger, Color
+from .OutputFile import OutputPrompt
 import json
 
 
@@ -16,7 +17,7 @@ class FunctionCallingTest(BaseModel):
 
 class CallingTests(BaseModel):
     file_path: str = Field(...)
-    prompt_function: Callable[[str], None] = Field(...)
+    prompt_function: Callable[[str], OutputPrompt] = Field(...)
 
     _logger: Logger = PrivateAttr()
     _content: list[FunctionCallingTest] = PrivateAttr([])
