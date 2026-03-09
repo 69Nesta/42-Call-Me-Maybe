@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, ValidationError, Field, PrivateAttr
 from .utils import Logger, Color
 from .FunctionDefinitions import FunctionDefinition
 from .errors import NotAFileError, PermissionError as _PermissionError
@@ -44,31 +44,31 @@ class OutputFile(BaseModel):
             )
             self.save()
         except PermissionError:
-            # self._logger.error(
-            #     f'Permission denied for file {self.file_path}.'
-            # )
             raise _PermissionError(self.file_path)
         except IsADirectoryError:
-            # self._logger.error(
-            #     f'The path {self.file_path} is not a file.'
-            # )
             raise NotAFileError(self.file_path)
 
     def parse(self) -> None:
         with open(self.file_path, "r") as f:
-            content = f.read().strip()
+            content: str = f.read().strip()
+            self._content = []
 
             if not content:
-                self._content = []
                 return
 
             items: list[dict[str, Any]] = json.loads(content)
 
-            if isinstance(items, list):
+            if not isinstance(items, list):
+                return
+
+            self._logger.log(
+                f'Parsing {len(items)} items...'
+            )
+            for item in items:
                 try:
-                    self._content = [OutputPrompt(**item) for item in items]
-                except Exception as e:
-                    self._logger.error(f"Error parsing output file: {e}")
+                    self._content.append(OutputPrompt(**item))
+                except ValidationError:
+                    self._logger.log('Skipping invalid item')
 
     def add_prompt(
                 self,
@@ -90,6 +90,7 @@ class OutputFile(BaseModel):
         return self._content[-1]
 
     def save(self) -> None:
+        self._logger.log('Saving...')
         with open(self.file_path, 'w') as f:
             json.dump(
                 [

@@ -66,7 +66,7 @@ class CallMeMaybe(BaseModel):
         preprompt: str = 'Extract the function for the user query\n'
         functuions_list: str = ', '.join(self._functions.get_names())
 
-        preprompt += f'_functions available: {functuions_list}\n'
+        preprompt += f'functions available: {functuions_list}\n'
         preprompt += f'query: {user_prompt}\n'
         preprompt += 'function to use: '
 
