@@ -42,14 +42,16 @@ def main() -> None:
             progress_bar.end()
         else:
             progress_bar.ACTIVE = False
-            logger.info('Enter yout prompt: ', end='')
-            output: OutputPrompt = ai.prompt(input(''))
-            logger.info(f'Function used: {output.name}')
-            logger.info('Parameters:')
-            for name, value in output.parameters.items():
-                logger.info(
-                    f' - {name}: {value}'
-                )
+            while True:
+                logger.info('Enter your prompt: ', end='')
+                output: OutputPrompt = ai.prompt(input(''))
+                logger.info(f'Function used: {output.name}')
+                logger.info('Parameters:')
+                for name, value in output.parameters.items():
+                    logger.info(
+                        f' - {name}: {value}'
+                    )
+                logger.info('---')
 
     except ValidationError as e:
         for error in e.errors():
