@@ -4,7 +4,7 @@ from .FunctionDefinitions import FunctionDefinition
 from .errors import NotAFileError, PermissionError as _PermissionError
 from typing import Any
 import json
-
+import os
 
 t_parameters = dict[str, str | float | int]
 t_prompt_output_content = dict[str, str | t_parameters]
@@ -91,6 +91,9 @@ class OutputFile(BaseModel):
 
     def save(self) -> None:
         self._logger.log('Saving...')
+
+        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
+
         with open(self.file_path, 'w') as f:
             json.dump(
                 [
