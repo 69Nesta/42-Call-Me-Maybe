@@ -143,6 +143,56 @@ make lint
 make lint-strict
 ```
 
+## Examples of expected input and output
+Given the following function definitions in `functions_definition.json`:
+```json
+[
+    {
+        "name": "fn_add_numbers",
+        "description": "Add two numbers together and return their sum.",
+        "parameters": {
+            "a": {
+                "type": "number"
+            },
+            "b": {
+                "type": "number"
+            }
+        },
+        "returns": {
+            "type": "number"
+        }
+    },
+    ...
+]
+```
+And the following prompt in `function_calling_tests.json`:
+```json
+[
+    {
+        "prompt": "Please add 5 and 10 together."
+    },
+    {
+        "prompt": "What is the sum of 5 and 10?"
+    },
+    ...
+]
+```
+The expected output in `prompts_output.json` would be:
+```json
+[
+    {
+        "prompt": "Replace all True in the string by False \"Admin = True\" ",
+        "name": "fn_substitute_string_with_regex",
+        "parameters": {
+            "source_string": "Admin = True",
+            "regex": "True",
+            "replacement": "False"
+        }
+    },
+    ...
+]
+```
+
 ## Resources
 
 - pydantic: https://docs.pydantic.dev/ — used for data modeling and validation
@@ -151,4 +201,4 @@ make lint-strict
 - Articles on constrained decoding and guided decoding:
   - standard literature on prefix-constrained decoding and beam search variants
 
-> Ai was use to create a draft of this README and for some question on libs (e.g. numpy and pydantic) 
+> Ai was used to create a draft of this README and for some questions on libs (e.g. numpy and pydantic) 
