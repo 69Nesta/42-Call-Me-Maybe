@@ -90,6 +90,10 @@ class FunctionDefinitions(BaseModel):
                 for item in raw_functions
             ]
 
+            functions_names = [function.name for function in functions]
+            if len(functions_names) != len(set(functions_names)):
+                raise ValueError('Function names must be unique.')
+
             for fn in functions:
                 for name, param in fn.parameters.items():
                     param.name = name
