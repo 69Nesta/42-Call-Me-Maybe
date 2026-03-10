@@ -6,6 +6,7 @@ from .FunctionDefinitions import (
 )
 from .utils import Logger, Color, ProgressBar, StepName
 from .OutputFile import OutputFile, OutputPrompt
+from .Vocabulary import Vocabulary
 from pydantic import BaseModel, Field, PrivateAttr
 from typing import Any, ClassVar
 import numpy as np
@@ -36,11 +37,15 @@ class CallMeMaybe(BaseModel):
     STRING_TERMINATORS: ClassVar[set[str]] = {
         '"', "\\'", "'", '\"', '\n', '"\n', "'\n"
     }
+    MAX_LOGITS_TO_CHECK_FIRST: ClassVar[int] = 3
+    MAX_LOGITS_TO_CHECK_OTHERS: ClassVar[int] = 1
 
     _logger: Logger = PrivateAttr()
     _model: Small_LLM_Model = PrivateAttr()
     _output_file: OutputFile = PrivateAttr()
     _functions: FunctionDefinitions = PrivateAttr()
+    _vocab: Vocabulary = PrivateAttr()
+    _termonators: list[int] = PrivateAttr()
 
     def model_post_init(self, _: Any) -> None:
         self._logger: Logger = Logger(name='Core', color=Color.CYAN)
@@ -58,10 +63,32 @@ class CallMeMaybe(BaseModel):
             file_path=self.functions_definition_path
         )
 
+        self._vocab = Vocabulary(
+            file_path=self._model.get_path_to_vocab_file()
+        )
+
         for key, value in self._functions.get_names_inputs().items():
             self._logger.log(
                 f'Function \'{key}\' encoded with input ids: {value}'
             )
+
+        self.create_index_terminators()
+
+    def create_index_terminators(self) -> list[int]:
+        self._logger.log('Creating terminators ids...')
+        self._termonators = []
+
+        for terminator in self.STRING_TERMINATORS:
+            terminator_id: list[int] = self.encode(terminator)
+            if terminator_id is not None and len(terminator_id) > 0 and \
+                    terminator_id[0] not in self._termonators:
+                self._termonators.append(terminator_id[0])
+                self._logger.log(
+                    f'Terminator \'{terminator}\' encoded with id: '
+                    f'{terminator_id[0]}'
+                )
+
+        return self._termonators
 
     def create_preprompt(self, user_prompt: str) -> str:
         preprompt: str = 'Extract the function for the user query\n'
@@ -181,16 +208,28 @@ class CallMeMaybe(BaseModel):
                 sorted_logits_index: list[int],
                 parameter_ids: list[int]
             ) -> tuple[float | int | None, int]:
-        best_logits = sorted_logits_index[0]
+        best_logits: int = sorted_logits_index.pop(0)
 
-        if not re.search(self.NUMBER_PATTERN, self.decode([best_logits])):
-            number: str = self.decode(parameter_ids)
-            if '.' in number:
-                return float(number), best_logits
+        number_try: int = self.MAX_LOGITS_TO_CHECK_FIRST
+        if len(parameter_ids) > 0:
+            number_try = self.MAX_LOGITS_TO_CHECK_OTHERS
+
+        for _ in range(number_try):
+            if best_logits in self._termonators:
+                break
+            if best_logits not in self._vocab.get_numebrs_index():
+                best_logits = sorted_logits_index.pop(0)
             else:
-                return int(number), best_logits
+                return None, best_logits
 
-        return None, best_logits
+        number: str = self.decode(parameter_ids)
+        if not number or not number.strip():
+            self._logger.log('Best logits is empty, skipping...')
+            return 0, best_logits
+        if '.' in number:
+            return float(number), best_logits
+        else:
+            return int(number), best_logits
 
     def _extract_string_parameter(
                 self,
