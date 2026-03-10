@@ -69,11 +69,17 @@ make lint
 # or 
 make lint-strict
 ```
-
 Configuration files
 - `--input / -i` — path to JSON file with prompts to process (default `./data/input/function_calling_tests.json`)
 - `--output / -o` — path to output JSON file (default `./data/output/prompts_output.json`)
 - `--functions_definition / -f` — path to functions definition (default `./data/input/functions_definition.json`)
+
+Additional flags:
+- `--interactive / -I` — run in interactive mode (process one prompt at a time from user input instead of batch processing)
+- `--debug / -D` — enable debug logging
+- `--model_name / -m` — specify the name of the local model to use (must be compatible with `Small_LLM_Model`)
+- `--cache_dir / -c` — specify a cache directory for model files (if applicable)
+- `--help / -h` — show help message and exit
 
 ## Algorithm explanation (constrained decoding)
 
@@ -118,6 +124,16 @@ Key implementation details:
 - Validation: `FunctionDefinitions` uses pydantic validation to ensure function definitions are well-formed. Malformed definitions raise descriptive errors.
 - Manual interactive tests: run `uv run python3 -m src --interactive` to try ad-hoc queries and inspect which function and parameters are returned.
 - Additional unit tests (recommended): add unit tests for tokenizer behavior, `Vocabulary` numeric mapping, and the constrained token-selection logic.
+
+## LLM files requirements
+-  The library llm_sdk let us choose the model we want to use, to work with the code provided, the model we choose must be a small local model that implements the `Small_LLM_Model` interface found in `llm_sdk`. The model files must include the following:
+    - `config.json`: contains the model architecture and hyperparameters.
+    - `generation_config.json`: contains generation-specific settings (e.g., max_length, temperature).
+    - `merges.txt`: contains the BPE merges for tokenization.
+    - `model.safetensors`: contains the model weights in a safe and efficient format.
+    - `tokenizer.json`: contains the tokenizer configuration and special tokens.
+    - `tokenizer_config.json`: contains additional tokenizer settings (e.g., padding, truncation).
+    - `vocab.json`: contains the mapping of tokens to their corresponding ids.
 
 ## Example usage
 

@@ -40,13 +40,15 @@ class Small_LLM_Model:
 
     def __init__(
         self,
-        model_name: str = "Qwen/Qwen3-0.6B",
+        model_name: str | None = "Qwen/Qwen3-0.6B",
         *,
         device: str | None = None,
         dtype: torch.dtype | None = None,
         trust_remote_code: bool = True,
+        cache_dir: str | None = None,
     ) -> None:
-        self._model_name = model_name
+        self._model_name: str = model_name if model_name else 'Qwen/Qwen3-0.6B'
+        self._cache_dir = cache_dir
 
         # Auto-select device with priority: mps > cuda > cpu
         if device is None:
@@ -68,17 +70,20 @@ class Small_LLM_Model:
 
         # --- load tokenizer & model ------------------------------------------
         self._tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=trust_remote_code
+            self._model_name,
+            cache_dir=self._cache_dir,
+            trust_remote_code=trust_remote_code
         )
         if self._tokenizer.pad_token_id is None:
             # ensure we have a pad token to keep batch helpers happy
             self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
 
         self._model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
-            model_name,
+            self._model_name,
             torch_dtype=self._dtype,
             device_map="auto" if self._device == "cuda" else None,
             trust_remote_code=trust_remote_code,
+            cache_dir=self._cache_dir,
         )
         self._model.to(self._device)
         self._model.eval()
@@ -123,7 +128,8 @@ class Small_LLM_Model:
         )
         vocab_path = hf_hub_download(
             repo_id=self._model_name,
-            filename=vocab_file_name
+            filename=vocab_file_name,
+            cache_dir=self._cache_dir,
         )
         return vocab_path
 
@@ -134,7 +140,8 @@ class Small_LLM_Model:
         )
         merges_path = hf_hub_download(
             repo_id=self._model_name,
-            filename=merges_file_name
+            filename=merges_file_name,
+            cache_dir=self._cache_dir,
         )
         return merges_path
 
@@ -145,7 +152,8 @@ class Small_LLM_Model:
         )
         tokenizer_path = hf_hub_download(
             repo_id=self._model_name,
-            filename=tokenizer_file_name
+            filename=tokenizer_file_name,
+            cache_dir=self._cache_dir,
         )
         return tokenizer_path
 

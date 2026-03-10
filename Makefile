@@ -3,11 +3,13 @@ UV_PY = uv run python3
 
 MYPY_FLAGS = --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
+LLM_CACHE = ~/goinfre/.llm_cache
+
 install:
 	uv sync
 
 run:
-	$(UV_PY) -m src
+	$(UV_PY) -m src -c $(LLM_CACHE)
 
 debug:
 	$(UV_PY) -m src --debug

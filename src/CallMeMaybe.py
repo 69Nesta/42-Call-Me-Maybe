@@ -25,6 +25,17 @@ class CallMeMaybe(BaseModel):
     )
     progress_bar: ProgressBar = Field(...)
 
+    model_name: str | None = Field(
+        default=None,
+        description='The name of the model to use, if None the default'
+    )
+
+    cache_dir: str | None = Field(
+        default=None,
+        description='The directory where the model will be cached, if None the'
+                    ' default cache directory will be used'
+    )
+
     NUMBER_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
     )
@@ -48,9 +59,15 @@ class CallMeMaybe(BaseModel):
     def model_post_init(self, _: Any) -> None:
         self._logger: Logger = Logger(name='Core', color=Color.CYAN)
 
-        self._logger.log('Initializing LLM...')
-        self._model: Small_LLM_Model = Small_LLM_Model()
-        self._logger.log('Model initialized.')
+        try:
+            self._logger.log('Initializing LLM...')
+            self._model: Small_LLM_Model = Small_LLM_Model(
+                model_name=self.model_name,
+                cache_dir=self.cache_dir
+            )
+            self._logger.log('Model initialized.')
+        except Exception as e:
+            raise ValueError(f'Error initializing model: {e}')
 
         self._output_file: OutputFile = OutputFile(
             file_path=self.output_file_path

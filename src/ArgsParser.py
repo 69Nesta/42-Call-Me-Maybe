@@ -43,6 +43,18 @@ class ArgsParser(BaseModel):
             help='Run the program in interactive mode',
             action='store_true'
         )
+        self._parser.add_argument(
+            '--cache_dir', '-c',
+            help='Cache directory for the LLM model',
+            metavar='<cache_dir>',
+            default=None
+        )
+        self._parser.add_argument(
+            '--model_name', '-m',
+            help='Name of the LLM model to use',
+            metavar='<model_name>',
+            default=None
+        )
         self._logger.log('Arguments registered successfully.')
 
     def parse_args(self, args: Sequence[str] | None = None) -> Namespace:
