@@ -26,7 +26,9 @@ def main() -> None:
         ai = CallMeMaybe(
             functions_definition_path=str(args.functions_definition),
             output_file_path=str(args.output),
-            progress_bar=progress_bar
+            progress_bar=progress_bar,
+            cache_dir=args.cache_dir,
+            model_name=args.model_name
         )
 
         if not args.interactive:

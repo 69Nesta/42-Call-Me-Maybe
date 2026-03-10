@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class Logger(BaseModel):
-    ACTIVE: bool = False
+    ACTIVE: bool = True
     name: str = Field(..., description='The name of the logger')
     color: Color = Field(..., description='The color of the logger')
 
