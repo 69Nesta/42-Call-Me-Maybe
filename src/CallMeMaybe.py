@@ -12,8 +12,6 @@ from typing import Any, ClassVar
 import numpy as np
 import re
 
-t_prompt_dict = dict[str, str | dict[str, str | float]]
-
 
 class CallMeMaybe(BaseModel):
     functions_definition_path: str = Field(
