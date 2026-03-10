@@ -1,4 +1,5 @@
-from .ArgsParser import ArgsParser, Namespace
+from .ArgsParser import ArgsParser
+from argparse import Namespace
 from .CallMeMaybe import CallMeMaybe
 from .CallingTests import CallingTests
 from .OutputFile import OutputPrompt
