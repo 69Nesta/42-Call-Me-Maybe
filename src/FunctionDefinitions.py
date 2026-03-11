@@ -6,7 +6,7 @@ from .utils import Color, Logger
 import numpy as np
 
 
-AllowedType = Literal['string', 'number']
+AllowedType = Literal['string', 'number', 'integer', 'boolean', 'float']
 
 
 class Parameter(BaseModel):
@@ -18,7 +18,7 @@ class Parameter(BaseModel):
         '',
         description="Name of the parameter"
     )
-    value: str | float | None = Field(
+    value: str | float | bool | None = Field(
         None,
         description='The value of the parameter, can be set later'
     )

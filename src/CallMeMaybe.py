@@ -281,6 +281,18 @@ class CallMeMaybe(BaseModel):
             self.decode(parameter_ids)
         ).strip().strip('"').strip("'").strip(), -1
 
+    def _extract_boolean_parameter(
+                self,
+                logits: list[float],
+            ) -> tuple[bool, int]:
+        true_ids: list[int] = self.encode('true')
+        false_ids: list[int] = self.encode('false')
+
+        if logits[true_ids[0]] > logits[false_ids[0]]:
+            return True, true_ids[0]
+        else:
+            return False, false_ids[0]
+
     def _extract_single_parameter(
                 self,
                 parameter_name: str,
@@ -298,7 +310,7 @@ class CallMeMaybe(BaseModel):
 
             best_logits: int
             match parameter.type:
-                case 'number':
+                case 'number' | 'integer' | 'float':
                     num_value: float | None
                     num_value, best_logits = self._extract_number_parameter(
                         sorted_logits_index, parameter_ids
@@ -327,6 +339,19 @@ class CallMeMaybe(BaseModel):
                             f'\'{parameter.value}\'{Color.RESET}'
                         )
                         break
+
+                case 'boolean':
+                    bool_value: bool
+                    bool_value, best_logits = self._extract_boolean_parameter(
+                        logits
+                    )
+                    parameter.value = bool_value
+                    self._logger.log(
+                        f'{Color.BRIGHT_YELLOW}{Color.BOLD}Parameter'
+                        f' {parameter_name}: '
+                        f'\'{parameter.value}\'{Color.RESET}'
+                    )
+                    break
 
                 case _:
                     self._logger.error(

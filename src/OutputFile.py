@@ -6,7 +6,7 @@ from typing import Any
 import json
 import os
 
-t_parameters = dict[str, str | float | int]
+t_parameters = dict[str, str | float | int | bool]
 t_prompt_output_content = dict[str, str | t_parameters]
 t_ouput_content = list[t_prompt_output_content]
 
