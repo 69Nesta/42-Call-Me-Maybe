@@ -250,10 +250,8 @@ class CallMeMaybe(BaseModel):
         if not number or not number.strip():
             self._logger.log('Best logits is empty, skipping...')
             return 0, best_logits
-        if '.' in number:
-            return float(number), best_logits
-        else:
-            return int(number), best_logits
+
+        return float(number), best_logits
 
     def _extract_string_parameter(
                 self,
