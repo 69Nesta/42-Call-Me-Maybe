@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError, Field, PrivateAttr
 from typing import Any, Callable
 from .utils import Logger, Color, ProgressBar, StepName
 from .OutputFile import OutputPrompt
+import time
 import json
 
 
@@ -33,7 +34,6 @@ class CallingTests(BaseModel):
 
         try:
             self.parse()
-            self.progress_bar.set_total(len(self._content))
         except FileNotFoundError:
             raise _FileNotFoundError(self.file_path)
         except PermissionError:
@@ -75,7 +75,23 @@ class CallingTests(BaseModel):
     def get_tests(self) -> list[FunctionCallingTest]:
         return self._content
 
+    def print_stats(self) -> None:
+        total_tests: int = len(self._content)
+
+        self._logger.info(
+            f"Loaded {total_tests} tests from '{self.file_path}'"
+        )
+        self._logger.info("Statistics:")
+        self._logger.info(f" - Total tests: {total_tests}")
+
     def run_tests(self) -> None:
+        self.print_stats()
+
+        self._logger.info('Running function calling tests...')
+        print()
+        self.progress_bar.set_total(len(self._content))
+
+        start: float = time.time()
         for test in self._content:
             self._logger.log(f"Running test: {test.prompt}")
             try:
@@ -83,3 +99,12 @@ class CallingTests(BaseModel):
                 self.progress_bar.update(1, StepName.NEXT_PROMPT)
             except Exception as e:
                 self._logger.error(f"Error running test: {e}")
+
+        self.progress_bar.update(0, StepName.FINISHED)
+        self.progress_bar.end()
+
+        end: float = time.time()
+        print()
+        self._logger.info(
+            f"Finished running tests in {end - start:.2f} seconds"
+        )

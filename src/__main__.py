@@ -4,7 +4,7 @@ from .CallMeMaybe import CallMeMaybe
 from .CallingTests import CallingTests
 from .OutputFile import OutputPrompt
 from pydantic import ValidationError
-from .utils import Logger, Color, ProgressBar, StepName
+from .utils import Logger, Color, ProgressBar, StepName, print_logo
 import sys
 
 
@@ -25,7 +25,7 @@ def main() -> None:
             current=0,
             length=20,
             current_step_name=StepName.EXTRACTING_FUNCTION,
-            ACTIVE=args.verbose
+            ACTIVE=not args.verbose
         )
 
         ai = CallMeMaybe(
@@ -37,6 +37,11 @@ def main() -> None:
             verbose=args.verbose
         )
 
+        print()
+        logger.info('')
+        logger.info('')
+        print_logo(logger.info)
+
         if not args.interactive:
             calling_test = CallingTests(
                 file_path=str(args.input),
@@ -46,9 +51,6 @@ def main() -> None:
             )
 
             calling_test.run_tests()
-
-            progress_bar.update(0, StepName.FINISHED)
-            progress_bar.end()
         else:
             progress_bar.ACTIVE = False
             continue_in_interactive_mode: bool = True
@@ -56,19 +58,26 @@ def main() -> None:
                 logger.info('Enter your prompt: ', end='')
                 try:
                     output: OutputPrompt = ai.prompt(input(''))
-                    logger.info(f'Function used: {output.name}')
+                    logger.info(
+                        f'Function used: {Color.GREEN}{output.name}'
+                        f'{Color.RESET}'
+                    )
                     logger.info('Parameters:')
                     for name, value in output.parameters.items():
                         logger.info(
-                            f' - {name}: {value}'
+                            f' - {Color.CYAN}{name}{Color.RESET}: '
+                            f'{Color.YELLOW}{value}{Color.RESET}'
                         )
                 except Exception as e:
-                    logger.error(f"Error running test: {e}")
-                logger.info('---')
+                    logger.error(f"Error: {e}")
+                logger.info('')
                 logger.info('Do you want to continue? (y/n): ', end='')
                 continue_in_interactive_mode = input('').lower() == 'y'
                 if not continue_in_interactive_mode:
-                    logger.info('Exiting interactive mode...')
+                    logger.info(
+                        f'{Color.ITALIC}Exiting interactive mode...'
+                        f'{Color.RESET}'
+                    )
                 else:
                     logger.info('---')
 

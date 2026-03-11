@@ -24,6 +24,7 @@ class Color(Enum):
 
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
+    ITALIC = "\033[3m"
 
     def __str__(self) -> str:
         return self.value
