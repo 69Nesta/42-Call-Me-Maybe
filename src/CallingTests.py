@@ -19,13 +19,14 @@ class CallingTests(BaseModel):
     file_path: str = Field(...)
     prompt_function: Callable[[str], OutputPrompt] = Field(...)
     progress_bar: ProgressBar = Field(...)
+    verbose: bool = Field(default=False)
 
     _logger: Logger = PrivateAttr()
     _content: list[FunctionCallingTest] = PrivateAttr([])
 
     def model_post_init(self, context: Any) -> None:
         self._logger = Logger(
-            ACTIVE=False,
+            ACTIVE=self.verbose,
             name='CallingTests',
             color=Color.BRIGHT_BLUE
         )

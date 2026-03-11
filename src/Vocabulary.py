@@ -7,6 +7,7 @@ import re
 
 class Vocabulary(BaseModel):
     file_path: str = Field(..., description='The path to the vocab file')
+    verbose: bool = Field(default=False)
 
     NUMBER_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
@@ -17,6 +18,7 @@ class Vocabulary(BaseModel):
 
     def model_post_init(self, context: Any) -> None:
         self._logger = Logger(
+            ACTIVE=self.verbose,
             name='Vocab',
             color=Color.BLUE
         )

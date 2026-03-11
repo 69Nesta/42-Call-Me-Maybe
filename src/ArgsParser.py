@@ -55,6 +55,11 @@ class ArgsParser(BaseModel):
             metavar='<model_name>',
             default=None
         )
+        self._parser.add_argument(
+            '--verbose', '-v',
+            help='Enable verbose logging',
+            action='store_true'
+        )
         self._logger.log('Arguments registered successfully.')
 
     def parse_args(self, args: Sequence[str] | None = None) -> Namespace:
