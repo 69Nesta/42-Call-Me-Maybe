@@ -1,9 +1,7 @@
 from pydantic import BaseModel, Field, ValidationError, ConfigDict, PrivateAttr
-from typing import Literal, Any
-from llm_sdk import Small_LLM_Model  # type: ignore
+from typing import Literal, Any, Callable
 from .JsonParser import JsonParser
 from .utils import Color, Logger
-import numpy as np
 
 
 AllowedType = Literal['string', 'number', 'integer', 'boolean', 'float']
@@ -41,10 +39,11 @@ class FunctionDefinition(BaseModel):
 class FunctionDefinitions(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    model: Small_LLM_Model = Field(
+    encode_function: Callable[[str], list[int]] = Field(
         ...,
-        description='The language model used to encode the function names',
+        description='The function used to encode the function names'
     )
+
     file_path: str = Field(
         ...,
         description='The path to the functions definition file'
@@ -129,13 +128,11 @@ class FunctionDefinitions(BaseModel):
         if not self._functions_inputs.keys():
             self._logger.log('Encoding functions name definition...')
             for function in self._functions_definition:
-                function_input_ids: list[int] = self.model.encode(
+                function_input_ids: list[int] = self.encode_function(
                     function.name
-                ).tolist()
+                )
                 self._functions_inputs.update({
-                    function.name: np.concatenate(
-                        function_input_ids
-                    ).ravel().tolist()
+                    function.name: function_input_ids
                 })
 
         return self._functions_inputs

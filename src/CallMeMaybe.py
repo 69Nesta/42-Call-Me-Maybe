@@ -81,7 +81,7 @@ class CallMeMaybe(BaseModel):
         )
 
         self._functions = FunctionDefinitions(
-            model=self._model,
+            encode_function=self.encode,
             file_path=self.functions_definition_path,
             verbose=self.verbose
         )
