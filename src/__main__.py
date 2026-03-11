@@ -72,7 +72,7 @@ def main() -> None:
                     logger.error(f"Error: {e}")
                 logger.info('')
                 logger.info('Do you want to continue? (y/n): ', end='')
-                continue_in_interactive_mode = input('').lower() == 'y'
+                continue_in_interactive_mode = input('').lower().strip() == 'y'
                 if not continue_in_interactive_mode:
                     logger.info(
                         f'{Color.ITALIC}Exiting interactive mode...'
