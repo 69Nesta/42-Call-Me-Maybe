@@ -8,6 +8,9 @@
             },
             "b": {
                 "type": "number"
+            },
+            "zero": {
+                "type": "boolean"
             }
         },
         "returns": {
