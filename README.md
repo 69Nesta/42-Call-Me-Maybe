@@ -81,6 +81,18 @@ Additional flags:
 - `--cache_dir / -c` — specify a cache directory for model files (if applicable)
 - `--help / -h` — show help message and exit
 
+
+## Video demonstration
+
+#### Help menu and argument parsing
+![Help Menu](https://github.com/69Nesta/42-call-me-maybe/blob/main/assets/help.png?raw=true)
+
+#### Running built-in tests
+![Running Tests](https://github.com/69Nesta/42-call-me-maybe/blob/main/assets/tests-mode.gif?raw=true)
+
+#### Interactive mode
+![Interactive Mode](https://github.com/69Nesta/42-call-me-maybe/blob/main/assets/interactive-mode.gif?raw=true)
+
 ## Algorithm explanation (constrained decoding)
 
 The constrained decoding approach implemented in `src/CallMeMaybe.py` works as follows:
