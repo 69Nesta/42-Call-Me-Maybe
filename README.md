@@ -23,7 +23,7 @@ The project is modular and uses pydantic models to validate inputs, an abstracte
     - `ProgressBar.py` — Simple progress bar
 - `data/` — data files
   - `input/` — input JSON files for function definitions and test prompts
-    - `functions_definition.json` — defines available functions, their parameters, and types
+    - `function_definitions.json` — defines available functions, their parameters, and types
     - `function_calling_tests.json` — example prompts to test the program
   - `output/` — output JSON files with results
 - `llm_sdk/` — local model wrapper (abstracted `Small_LLM_Model`)
@@ -60,7 +60,7 @@ uv run python3 -m src --interactive # or -I
 
 Specify custom files:
 ```bash
-uv run python3 -m src -i ./data/input/function_calling_tests.json -f ./data/input/functions_definition.json -o ./data/output/prompts_output.json
+uv run python3 -m src -i ./data/input/function_calling_tests.json -f ./data/input/function_definitions.json -o ./data/output/prompts_output.json
 ```
 
 Lint and type-check:
@@ -72,7 +72,7 @@ make lint-strict
 Configuration files
 - `--input / -i` — path to JSON file with prompts to process (default `./data/input/function_calling_tests.json`)
 - `--output / -o` — path to output JSON file (default `./data/output/prompts_output.json`)
-- `--functions_definition / -f` — path to functions definition (default `./data/input/functions_definition.json`)
+- `--functions_definition / -f` — path to functions definition (default `./data/input/function_definitions.json`)
 
 Additional flags:
 - `--interactive / -I` — run in interactive mode (process one prompt at a time from user input instead of batch processing)
@@ -161,7 +161,7 @@ uv run python3 -m src --interactive # or -I
 
 Specify custom files:
 ```bash
-uv run python3 -m src -i ./data/input/function_calling_tests.json -f ./data/input/functions_definition.json -o ./data/output/prompts_output.json
+uv run python3 -m src -i ./data/input/function_calling_tests.json -f ./data/input/function_definitions.json -o ./data/output/prompts_output.json
 ```
 
 Lint and type-check:
@@ -172,7 +172,7 @@ make lint-strict
 ```
 
 ## Examples of expected input and output
-Given the following function definitions in `functions_definition.json`:
+Given the following function definitions in `function_definitions.json`:
 ```json
 [
     {

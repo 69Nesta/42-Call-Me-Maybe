@@ -36,7 +36,7 @@ class ArgsParser(BaseModel):
             '--functions_definition', '-f',
             help='Functions definition file path',
             metavar='<functions_definition_file>',
-            default='./data/input/functions_definition.json'
+            default='./data/input/function_definitions.json'
         )
         self._parser.add_argument(
             '--interactive', '-I',
