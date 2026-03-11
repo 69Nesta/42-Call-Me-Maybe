@@ -76,7 +76,7 @@ Configuration files
 
 Additional flags:
 - `--interactive / -I` — run in interactive mode (process one prompt at a time from user input instead of batch processing)
-- `--debug / -D` — enable debug logging
+- `--verbose / -v` — enable debug logging
 - `--model_name / -m` — specify the name of the local model to use (must be compatible with `Small_LLM_Model`)
 - `--cache_dir / -c` — specify a cache directory for model files (if applicable)
 - `--help / -h` — show help message and exit

@@ -50,13 +50,19 @@ class FunctionDefinitions(BaseModel):
         description='The path to the functions definition file'
     )
 
+    verbose: bool = Field(default=False)
+
     _logger: Logger = PrivateAttr()
     _parser: JsonParser = PrivateAttr()
     _functions_definition: list[FunctionDefinition] = PrivateAttr()
     _functions_inputs: dict[str, list[int]] = PrivateAttr()
 
     def model_post_init(self, _: Any) -> None:
-        self._logger = Logger(name='FuncDefs', color=Color.YELLOW)
+        self._logger = Logger(
+            ACTIVE=self.verbose,
+            name='FuncDefs',
+            color=Color.YELLOW
+        )
 
         self.load(self.file_path)
 

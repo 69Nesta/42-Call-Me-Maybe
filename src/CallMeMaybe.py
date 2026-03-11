@@ -36,6 +36,8 @@ class CallMeMaybe(BaseModel):
                     ' default cache directory will be used'
     )
 
+    verbose: bool = Field(default=False)
+
     NUMBER_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?:\d+(?:\.\d*)?|\.\d+|\.)$"
     )
@@ -57,7 +59,11 @@ class CallMeMaybe(BaseModel):
     _termonators: list[int] = PrivateAttr()
 
     def model_post_init(self, _: Any) -> None:
-        self._logger: Logger = Logger(name='Core', color=Color.CYAN)
+        self._logger: Logger = Logger(
+            ACTIVE=self.verbose,
+            name='Core',
+            color=Color.CYAN
+        )
 
         try:
             self._logger.log('Initializing LLM...')
@@ -70,16 +76,19 @@ class CallMeMaybe(BaseModel):
             raise ValueError(f'Error initializing model: {e}')
 
         self._output_file: OutputFile = OutputFile(
-            file_path=self.output_file_path
+            file_path=self.output_file_path,
+            verbose=self.verbose
         )
 
         self._functions = FunctionDefinitions(
             model=self._model,
-            file_path=self.functions_definition_path
+            file_path=self.functions_definition_path,
+            verbose=self.verbose
         )
 
         self._vocab = Vocabulary(
-            file_path=self._model.get_path_to_vocab_file()
+            file_path=self._model.get_path_to_vocab_file(),
+            verbose=self.verbose
         )
 
         for key, value in self._functions.get_names_inputs().items():

@@ -28,12 +28,17 @@ class OutputPrompt(BaseModel):
 
 class OutputFile(BaseModel):
     file_path: str = Field(..., description='The path of the output file')
+    verbose: bool = Field(default=False)
 
     _logger: Logger = PrivateAttr()
     _content: list[OutputPrompt] = PrivateAttr([])
 
     def model_post_init(self, _: Any) -> None:
-        self._logger = Logger(name='OutputFile', color=Color.BLUE)
+        self._logger = Logger(
+            ACTIVE=self.verbose,
+            name='OutputFile',
+            color=Color.BLUE
+        )
 
         try:
             self.parse()
