@@ -15,6 +15,7 @@ class Vocabulary(BaseModel):
 
     _numbers: dict[int, str] = PrivateAttr({})
     _logger: Logger = PrivateAttr()
+    _vocab_data: dict[str, int] = PrivateAttr({})
 
     def model_post_init(self, context: Any) -> None:
         self._logger = Logger(
@@ -41,6 +42,8 @@ class Vocabulary(BaseModel):
                 self._numbers.update({
                     int(value): key
                 })
+
+        self._vocab_data = content
 
         self._logger.log('Vocab loaded !')
         self._logger.log(f'Numbers found in vocab: {self.get_numbers()}')
