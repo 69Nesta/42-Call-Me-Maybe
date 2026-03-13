@@ -8,6 +8,14 @@ AllowedType = Literal['string', 'number', 'integer', 'boolean', 'float']
 
 
 class Parameter(BaseModel):
+    """Model describing a single function parameter.
+
+    Attributes:
+        type (AllowedType): The type of the parameter (string, number, etc.).
+        name (str): The name of the parameter.
+        value (str | float | bool | None): The value for the parameter. This
+            may be set later during extraction.
+    """
     type: AllowedType = Field(
         ...,
         description="Type of the parameter (e.g., number, string)"
@@ -23,6 +31,11 @@ class Parameter(BaseModel):
 
 
 class ReturnSchema(BaseModel):
+    """Model describing the return schema of a function.
+
+    Attributes:
+        type (AllowedType): The return type of the function.
+    """
     type: AllowedType = Field(
         ...,
         description="Return type"
@@ -30,6 +43,15 @@ class ReturnSchema(BaseModel):
 
 
 class FunctionDefinition(BaseModel):
+    """Representation of a function definition.
+
+    Attributes:
+        name (str): Function name.
+        description (str): Function description.
+        parameters (dict[str, Parameter]): Mapping from parameter name to
+            Parameter model.
+        returns (ReturnSchema): The return schema for the function.
+    """
     name: str
     description: str
     parameters: dict[str, Parameter]
@@ -37,6 +59,17 @@ class FunctionDefinition(BaseModel):
 
 
 class FunctionDefinitions(BaseModel):
+    """Loader and container for all function definitions.
+
+    This class loads function definitions from a JSON file, validates them
+    and exposes helpers to retrieve names and encoded inputs.
+
+    Attributes:
+        encode_function (Callable[[str], list[int]]): Function used to
+            encode function names to token ids.
+        file_path (str): Path to the functions definition JSON file.
+        verbose (bool): Whether to enable verbose logging.
+    """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     encode_function: Callable[[str], list[int]] = Field(
@@ -57,6 +90,11 @@ class FunctionDefinitions(BaseModel):
     _functions_inputs: dict[str, list[int]] = PrivateAttr()
 
     def model_post_init(self, _: Any) -> None:
+        """Initialize internal logger and load the definitions.
+
+        Args:
+            _ (Any): Pydantic post-init context (ignored).
+        """
         self._logger = Logger(
             ACTIVE=self.verbose,
             name='FuncDefs',
@@ -68,6 +106,15 @@ class FunctionDefinitions(BaseModel):
         self._functions_inputs: dict[str, list[int]] = {}
 
     def load(self, file_path: str) -> None:
+        """Load and validate functions definition from a JSON file.
+
+        Args:
+            file_path (str): Path to the JSON file containing function defs.
+
+        Raises:
+            ValueError: If parsing or validation fails or if not enough
+                functions are provided.
+        """
         self._logger.log('Loading functions definition...')
         self._parser = JsonParser(file_path)
 
@@ -87,6 +134,18 @@ class FunctionDefinitions(BaseModel):
                 self,
                 raw_functions: list[dict[str, str | dict[str, dict[str, str]]]]
             ) -> list[FunctionDefinition]:
+        """Parse raw JSON data into FunctionDefinition models.
+
+        Args:
+            raw_functions (list[dict]): Raw list of function definition
+                dictionaries as read from the JSON file.
+
+        Returns:
+            list[FunctionDefinition]: Validated list of function models.
+
+        Raises:
+            ValueError: If the input format is invalid or validation fails.
+        """
         self._logger.log('Parsing functions definition...')
 
         try:
@@ -119,12 +178,29 @@ class FunctionDefinitions(BaseModel):
             raise ValueError("Invalid function definition format")
 
     def get_functions_definition(self) -> list[FunctionDefinition]:
+        """Return the loaded function definitions.
+
+        Returns:
+            list[FunctionDefinition]: The list of loaded function models.
+        """
         return self._functions_definition
 
     def get_names(self) -> list[str]:
+        """Return the list of function names.
+
+        Returns:
+            list[str]: Function names in the loaded definitions.
+        """
         return [function.name for function in self._functions_definition]
 
     def get_names_inputs(self) -> dict[str, list[int]]:
+        """Return a mapping of function names to their encoded token ids.
+
+        The encoding is performed once and cached for subsequent calls.
+
+        Returns:
+            dict[str, list[int]]: Mapping of function name to encoded ids.
+        """
         if not self._functions_inputs.keys():
             self._logger.log('Encoding functions name definition...')
             for function in self._functions_definition:
@@ -138,6 +214,14 @@ class FunctionDefinitions(BaseModel):
         return self._functions_inputs
 
     def get_names_inputs_with(self, start: list[int]) -> dict[str, list[int]]:
+        """Return functions whose encoded ids start with a prefix.
+
+        Args:
+            start (list[int]): Token id prefix to filter function names.
+
+        Returns:
+            dict[str, list[int]]: Mapping of matching function names to ids.
+        """
         self._logger.log(
             f'Getting functions name definition with start: {start}...'
         )
@@ -149,6 +233,17 @@ class FunctionDefinitions(BaseModel):
         return names_inputs_with
 
     def get_by_name(self, name: str) -> FunctionDefinition:
+        """Return a FunctionDefinition by name.
+
+        Args:
+            name (str): Function name to retrieve.
+
+        Returns:
+            FunctionDefinition: The matching function model.
+
+        Raises:
+            ValueError: If no function with the given name exists.
+        """
         function = next(
             x
             for x in self._functions_definition

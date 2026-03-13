@@ -14,6 +14,26 @@ import re
 
 
 class CallMeMaybe(BaseModel):
+    """Main class that handles function extraction from text prompts.
+
+    This class wraps an LLM model and supporting utilities to:
+    - Build preprompts describing available functions
+    - Encode/decode tokens
+    - Identify the best-matching function name from model logits
+    - Extract typed parameters (number, string, boolean)
+    - Save the extracted function call to an output file
+
+    Attributes:
+        functions_definition_path (str): Path to the JSON file
+            defining functions.
+        output_file_path (str): Path to the output file to save extracted
+            prompts.
+        progress_bar (ProgressBar): Progress bar used while running tests.
+        model_name (str | None): Optional model name to use for the LLM.
+        cache_dir (str | None): Optional cache directory for the LLM model.
+        verbose (bool): Whether to enable verbose logging.
+    """
+
     functions_definition_path: str = Field(
         ...,
         description='The path to the _functions definition file'
@@ -59,6 +79,18 @@ class CallMeMaybe(BaseModel):
     _termonators: list[int] = PrivateAttr()
 
     def model_post_init(self, _: Any) -> None:
+        """Initialize runtime resources after model creation.
+
+        This initializes the logger, LLM model, output file, function
+        definitions, vocabulary and terminators.
+
+        Args:
+            _ (Any): Pydantic post-init context (ignored).
+
+        Raises:
+            ValueError: If the LLM model cannot be initialized.
+        """
+
         self._logger: Logger = Logger(
             ACTIVE=self.verbose,
             name='Core',
@@ -99,6 +131,16 @@ class CallMeMaybe(BaseModel):
         self.create_index_terminators()
 
     def create_index_terminators(self) -> list[int]:
+        """Create and return a list of token ids that terminate strings.
+
+        The terminators are derived from a set of string terminator tokens
+        and encoded with the model. The first token id for each terminator
+        is collected.
+
+        Returns:
+            list[int]: List of token ids that represent string terminators.
+        """
+
         self._logger.log('Creating terminators ids...')
         self._termonators = []
 
@@ -115,6 +157,16 @@ class CallMeMaybe(BaseModel):
         return self._termonators
 
     def create_preprompt(self, user_prompt: str) -> str:
+        """Build a human-readable preprompt describing available functions.
+
+        Args:
+            user_prompt (str): The original user prompt.
+
+        Returns:
+            str: A preprompt string that lists available functions and the
+            user query used to prime the model for function extraction.
+        """
+
         preprompt: str = 'Extract the function for the user query\n'
         functuions_list: str = ', '.join(self._functions.get_names())
 
@@ -125,6 +177,15 @@ class CallMeMaybe(BaseModel):
         return preprompt
 
     def get_preprompt(self, user_prompt: str) -> list[int]:
+        """Encode the preprompt for a given user prompt.
+
+        Args:
+            user_prompt (str): The original user prompt.
+
+        Returns:
+            list[int]: The encoded token ids for the preprompt.
+        """
+
         prompt: str = self.create_preprompt(user_prompt)
 
         self._logger.log(f'Preprompt:\n{prompt}')
@@ -132,10 +193,28 @@ class CallMeMaybe(BaseModel):
         return self.encode(prompt)
 
     def encode(self, text: str) -> list[int]:
+        """Encode text into token ids using the underlying LLM.
+
+        Args:
+            text (str): Text to encode.
+
+        Returns:
+            list[int]: Flattened list of token ids representing the text.
+        """
+
         input_ids_2d: list[list[int]] = self._model.encode(text).tolist()
         return np.concatenate(input_ids_2d).ravel().tolist()
 
     def decode(self, input_ids: list[int]) -> str:
+        """Decode token ids back into text using the LLM.
+
+        Args:
+            input_ids (list[int]): List of token ids to decode.
+
+        Returns:
+            str: Decoded text string.
+        """
+
         return str(self._model.decode(input_ids))
 
     def _get_available_function_logits(
@@ -143,6 +222,18 @@ class CallMeMaybe(BaseModel):
         prompt_ids_2d: list[int],
         function_name_ids: list[int]
     ) -> list[tuple[int, float]]:
+        """Obtain logits for function-name continuation tokens.
+
+        Args:
+            prompt_ids_2d (list[int]): Current encoded prompt ids.
+            function_name_ids (list[int]): Encoded token ids for function
+                name prefix already built so far.
+
+        Returns:
+            list[tuple[int, float]]: A list of tuples (token_id, logit)
+            sorted by descending logit for candidate function name tokens.
+        """
+
         logits: list[float] = self._model.get_logits_from_input_ids(
             prompt_ids_2d
         )
@@ -171,6 +262,18 @@ class CallMeMaybe(BaseModel):
                 probability: float,
                 prompt: str
             ) -> None:
+        """Validate that the model is confident enough about a function.
+
+        Args:
+            iteration (int): Current iteration index while decoding name.
+            probability (float): Confidence/probability score for the token.
+            prompt (str): Original user prompt used for context.
+
+        Raises:
+            ValueError: If the model is not confident enough to select a
+                function after a critical iteration.
+        """
+
         if (iteration == self.CONFIDENCE_CHECK_ITERATION
            and probability < self.MIN_CONFIDENCE_THRESHOLD):
             raise ValueError(
@@ -184,6 +287,21 @@ class CallMeMaybe(BaseModel):
                 user_prompt_ids: list[int],
                 prompt_ids_2d: list[int]
             ) -> FunctionDefinition:
+        """Extract the best matching function definition for a prompt.
+
+        This method iteratively selects token ids that maximize the logits
+        for function names until the longest function name length is
+        reached or no candidates remain.
+
+        Args:
+            prompt (str): The original user prompt.
+            user_prompt_ids (list[int]): Encoded token ids of the user prompt.
+            prompt_ids_2d (list[int]): Encoded token ids for the preprompt.
+
+        Returns:
+            FunctionDefinition: The matched FunctionDefinition object.
+        """
+
         self.progress_bar.update(0, StepName.EXTRACTING_FUNCTION)
         function_name_ids: list[int] = []
         self._logger.log(
@@ -232,6 +350,20 @@ class CallMeMaybe(BaseModel):
                 sorted_logits_index: list[int],
                 parameter_ids: list[int]
             ) -> tuple[float | int | None, int]:
+        """Extract a numeric parameter value from model logits.
+
+        Args:
+            sorted_logits_index (list[int]): Candidate token ids sorted by
+                descending logits.
+            parameter_ids (list[int]): Token ids collected so far for this
+                parameter value.
+
+        Returns:
+            tuple[float | int | None, int]: A tuple of (number_value or None,
+            token_id used). If no number could be extracted None is returned
+            as the first element.
+        """
+
         best_logits: int = sorted_logits_index.pop(0)
 
         number_try: int = self.MAX_LOGITS_TO_CHECK_FIRST
@@ -259,6 +391,24 @@ class CallMeMaybe(BaseModel):
                 parameter_ids: list[int],
                 prompt: str
             ) -> tuple[str | None, int]:
+        """Extract a string parameter from candidate token predictions.
+
+        The routine attempts a few top logits and validates the resulting
+        decoded candidate against string terminators and whether it appears
+        in the original prompt.
+
+        Args:
+            sorted_logits_index (list[int]): Candidate token ids sorted by
+                descending logits.
+            parameter_ids (list[int]): Token ids collected so far for this
+                parameter value.
+            prompt (str): Original user prompt for context-based checks.
+
+        Returns:
+            tuple[str | None, int]: Extracted string (or None if not found)
+            and the token id which signaled termination or -1.
+        """
+
         for i in range(self.MAX_LOGITS_TO_CHECK):
             predicted_token_id: int = sorted_logits_index[i]
             predicted_sentence: str = self.decode(
@@ -285,6 +435,19 @@ class CallMeMaybe(BaseModel):
                 self,
                 logits: list[float],
             ) -> tuple[bool, int]:
+        """Extract a boolean parameter by comparing logits.
+
+        Chooses between the tokens for 'true' and 'false' based on which
+        token has the higher logit score.
+
+        Args:
+            logits (list[float]): Logits returned by the model for the
+                current input.
+
+        Returns:
+            tuple[bool, int]: Selected boolean value and the token id used.
+        """
+
         true_ids: list[int] = self.encode('true')
         false_ids: list[int] = self.encode('false')
 
@@ -300,6 +463,23 @@ class CallMeMaybe(BaseModel):
                 prompt: str,
                 parameter_prompt_ids: list[int]
             ) -> list[int]:
+        """Extract a single parameter value for a function parameter.
+
+        This method loops until a valid value for the parameter is found,
+        supporting types: number, string and boolean.
+
+        Args:
+            parameter_name (str): Name of the parameter being extracted.
+            parameter (Parameter): Parameter model instance to populate.
+            prompt (str): Original user prompt used for context.
+            parameter_prompt_ids (list[int]): Encoded ids of the prompt used
+                to query the model for this parameter value.
+
+        Returns:
+            list[int]: Updated prompt ids including the tokens predicted for
+            the extracted parameter value.
+        """
+
         parameter_ids: list[int] = []
 
         while True:
@@ -371,6 +551,17 @@ class CallMeMaybe(BaseModel):
                 prompt_ids_2d: list[int],
                 function: FunctionDefinition
             ) -> FunctionDefinition:
+        """Extract all parameters for the selected function.
+
+        Args:
+            prompt (str): Original user prompt.
+            prompt_ids_2d (list[int]): Encoded preprompt ids.
+            function (FunctionDefinition): FunctionDefinition to populate.
+
+        Returns:
+            FunctionDefinition: The function object with parameter values set.
+        """
+
         self.progress_bar.update(0, StepName.EXTRACTING_PARAMETERS)
 
         for parameter_name, parameter in function.parameters.items():
@@ -391,6 +582,13 @@ class CallMeMaybe(BaseModel):
         return function
 
     def _log_extracted_function(self, function: FunctionDefinition) -> None:
+        """Log the extracted function name and parameters.
+
+        Args:
+            function (FunctionDefinition): The function whose extraction will
+                be logged.
+        """
+
         self._logger.log(
             f'{Color.GREEN}Function \'{function.name}\' extracted with '
             f'parameters:{Color.RESET}'
@@ -401,6 +599,20 @@ class CallMeMaybe(BaseModel):
             )
 
     def prompt(self, prompt: str) -> OutputPrompt:
+        """Process a user prompt and return the extracted OutputPrompt.
+
+        This is the main entry-point for extracting a function call from a
+        prompt. It encodes the prompt, finds the appropriate function,
+        extracts parameters, logs results and saves them to the output file.
+
+        Args:
+            prompt (str): User prompt to process.
+
+        Returns:
+            OutputPrompt: The persisted prompt information including the
+            selected function name and extracted parameters.
+        """
+
         user_prompt_ids: list[int] = self.encode(prompt)
         prompt_ids_2d: list[int] = self.get_preprompt(prompt)
 

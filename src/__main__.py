@@ -9,6 +9,23 @@ import sys
 
 
 def main() -> None:
+    """Run the application.
+
+    This function acts as the program entry point. It handles CLI parsing,
+    configures logging and progress display, initializes the AI helper and
+    either runs the batch of tests or provides an interactive prompt loop.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        ValidationError: If Pydantic validation fails while creating models.
+        ValueError: For expected runtime errors reported to the user.
+        Exception: For unexpected errors which are logged before exit.
+    """
     try:
         args_parser: ArgsParser = ArgsParser()
         args: Namespace = args_parser.parse_args(sys.argv[1:])
@@ -89,6 +106,8 @@ def main() -> None:
                 logger.error(f"Error: {error['msg']}")
     except ValueError as e:
         logger.error(f'Error: {e.__cause__ or e}')
+    except Exception as e:
+        logger.error(f'Unexpected error: {e}')
 
 
 if __name__ == "__main__":

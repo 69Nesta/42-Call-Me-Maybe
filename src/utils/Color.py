@@ -2,6 +2,12 @@ from enum import Enum
 
 
 class Color(Enum):
+    """Enum mapping symbolic names to ANSI escape codes.
+
+    The enum values are string sequences that can be used to style
+    terminal output. Converting the enum to string returns the raw escape
+    sequence.
+    """
     RESET = "\033[0m"
 
     BLACK = "\033[30m"
@@ -27,4 +33,9 @@ class Color(Enum):
     ITALIC = "\033[3m"
 
     def __str__(self) -> str:
+        """Return the raw ANSI escape sequence for the enum value.
+
+        Returns:
+            str: The escape sequence string for terminal styling.
+        """
         return self.value

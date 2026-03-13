@@ -1,3 +1,10 @@
+"""Load and run function-calling tests from a JSON file.
+
+The CallingTests module reads a list of prompts from a JSON file and uses a
+provided prompt handler (the AI) to run each test while reporting progress
+and basic timing statistics.
+"""
+
 from .errors import (
     NotAFileError,
     PermissionError as _PermissionError,
@@ -13,10 +20,27 @@ import json
 
 
 class FunctionCallingTest(BaseModel):
+    """Simple model representing a single function-calling test.
+
+    Attributes:
+        prompt (str): The user prompt to feed to the prompt function.
+    """
     prompt: str = Field(...)
 
 
 class CallingTests(BaseModel):
+    """Runner that executes a collection of function-calling tests.
+
+    The runner loads tests from a JSON file, runs them using the provided
+    prompt function, updates a progress bar and logs timing statistics.
+
+    Attributes:
+        file_path (str): Path to the JSON test file to load.
+        prompt_function (Callable[[str], OutputPrompt]): Callable used to
+            process a prompt and return an OutputPrompt.
+        progress_bar (ProgressBar): ProgressBar instance used during runs.
+        verbose (bool): Enable verbose logging.
+    """
     file_path: str = Field(...)
     prompt_function: Callable[[str], OutputPrompt] = Field(...)
     progress_bar: ProgressBar = Field(...)
@@ -26,6 +50,16 @@ class CallingTests(BaseModel):
     _content: list[FunctionCallingTest] = PrivateAttr([])
 
     def model_post_init(self, context: Any) -> None:
+        """Initialize logger and parse the test file.
+
+        Args:
+            context (Any): Pydantic post-init context (ignored).
+
+        Raises:
+            FileNotFoundError, PermissionError, NotAFileError,
+            InvalidJsonFileError: When the test file cannot be accessed or is
+            malformed.
+        """
         self._logger = Logger(
             ACTIVE=self.verbose,
             name='CallingTests',
@@ -46,6 +80,11 @@ class CallingTests(BaseModel):
         super().model_post_init(context)
 
     def parse(self) -> None:
+        """Read and validate the JSON list of test prompts.
+
+        Raises:
+            ValueError: If individual test entries are invalid.
+        """
         with open(self.file_path, 'r') as f:
             content = f.read().strip()
 
@@ -73,9 +112,18 @@ class CallingTests(BaseModel):
                 raise ValueError("Invalid function definition format")
 
     def get_tests(self) -> list[FunctionCallingTest]:
+        """Return the loaded tests.
+
+        Returns:
+            list[FunctionCallingTest]: List of test models loaded from disk.
+        """
         return self._content
 
     def print_stats(self) -> None:
+        """Log simple statistics about the loaded tests.
+
+        No return value; info messages are printed via the logger.
+        """
         total_tests: int = len(self._content)
 
         self._logger.info(
@@ -85,6 +133,11 @@ class CallingTests(BaseModel):
         self._logger.info(f" - Total tests: {total_tests}")
 
     def run_tests(self) -> None:
+        """Execute all loaded tests using the configured prompt function.
+
+        The method updates the progress bar and logs elapsed time. Individual
+        test failures are caught and logged so the runner can continue.
+        """
         self.print_stats()
 
         self._logger.info('Running function calling tests...')

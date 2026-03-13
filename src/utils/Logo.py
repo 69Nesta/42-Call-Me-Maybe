@@ -50,5 +50,11 @@ LOGO: list[str] = [
 
 
 def print_logo(print_function: Callable[[str], None]) -> None:
+    """Print the ASCII art logo using a provided print function.
+
+    Args:
+        print_function (Callable[[str], None]): Function that accepts a
+            single string to print a line (e.g. builtin print).
+    """
     for line in LOGO:
         print_function(line)
