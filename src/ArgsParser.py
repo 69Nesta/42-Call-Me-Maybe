@@ -6,6 +6,13 @@ from typing import Any
 
 
 class ArgsParser(BaseModel):
+    """Helper that registers and parses CLI arguments.
+
+    Methods:
+        register_arguments(): Register supported CLI flags and options.
+        parse_args(args): Parse an optional list of arguments and return
+            the resulting Namespace.
+    """
     _logger: Logger = PrivateAttr()
     _parser: ArgumentParser = PrivateAttr()
 
@@ -14,6 +21,11 @@ class ArgsParser(BaseModel):
         self.register_arguments()
 
     def register_arguments(self) -> None:
+        """Register all supported command-line arguments.
+
+        The arguments include input/output file paths, functions definition
+        path, interactive mode toggle, cache directory and model name.
+        """
         self._logger.log('Registering command-line arguments...')
         self._parser = ArgumentParser(
             description='Call Me Maybe - A nontrivial modular command-line'

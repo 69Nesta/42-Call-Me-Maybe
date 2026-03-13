@@ -147,6 +147,16 @@ Key implementation details:
     - `tokenizer_config.json`: contains additional tokenizer settings (e.g., padding, truncation).
     - `vocab.json`: contains the mapping of tokens to their corresponding ids.
 
+## Known working local models
+The following local models were tested with this project. The score is the observed success rate on the project's test prompts (out of 11). Results may vary depending on tokenizer compatibility and local setup.
+
+| Model | Score (out of 11) | Rating (out of 5) |
+|---|---:|:---|
+| `charlottemeyer/s1K-1.1_tokenized-20250517_084622` | 9 / 11 | ★★★★☆ (4.0/5) |
+| `cyberbabooshka/base_noreasoning` | 9 / 11 | ★★★★☆ (4.0/5) |
+| `charlottemeyer/s1.1-20250515_160200` | 9.5 / 11 | ★★★★½ (4.5/5) |
+| `scanton/MNLP_M2_rag_model` | 9 / 11 | ★★★★☆ (4.0/5) |
+
 ## Example usage
 
 Run all built-in tests and save results to the default output file:
@@ -229,4 +239,4 @@ The expected output in `prompts_output.json` would be:
 - Articles on constrained decoding and guided decoding:
   - standard literature on prefix-constrained decoding and beam search variants
 
-> Ai was used to create a draft of this README and for some questions on libs (e.g. numpy and pydantic) 
+> Ai was used to create a draft of this README and for some questions on libs (e.g. numpy and pydantic)
